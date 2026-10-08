@@ -3,6 +3,7 @@ import { Lang, type SgNode } from '@ast-grep/napi'
 import { CONTEXT_ASYNC_HOOKS, SDK_TRACE, T6, TRACE_SOURCES, traceName, type ImportKind } from '../data/names.js'
 import { TARGETS, type RuleId } from '../data/rules.js'
 import { splice } from '../engine/splice.js'
+import { continues } from '../engine/style.js'
 import type { Binding, Edit, FileContext, ImportAdd, Rule } from '../engine/types.js'
 
 // The body rules that moved names in a file. Rule I moves only theirs, so --only on another rule leaves these imports alone.
@@ -462,7 +463,9 @@ export const imports: Rule = {
           declarations.push(newDeclaration(ctx, 'esm', module, types, true, shape, eol))
         }
       }
-      const block = declarations.join(eol)
+      // A new require without a semicolon would run on into a next line that starts with ( or [.
+      const tail = !ctx.style.semi && declarations.at(-1)?.endsWith(')') && continues(ctx.text, index, before) ? ';' : ''
+      const block = declarations.join(eol) + tail
       edits.push(before ? { start: index, end: index, text: `${block}${eol}` } : { start: index, end: index, text: `${eol}${block}` })
     }
     return edits
