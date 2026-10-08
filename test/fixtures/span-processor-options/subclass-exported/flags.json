@@ -1,0 +1,4 @@
+[
+  { "rule": "public-api", "severity": "note", "line": 4, "column": 14 },
+  { "rule": "public-api", "severity": "note", "line": 10, "column": 14 }
+]
