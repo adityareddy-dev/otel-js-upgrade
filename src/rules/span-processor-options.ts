@@ -17,6 +17,8 @@ interface Use {
   // The new expression or the super(...) call.
   readonly call: SgNode
   readonly what: string
+  // What the user does about a bail, when it is not passing an options object.
+  readonly fix?: string
   readonly outcome: Outcome
 }
 
@@ -200,7 +202,8 @@ function usesOf(ctx: FileContext, binding: Binding, local: string, batch: boolea
     const outcome = rewrite(ctx, call, batch)
     if (outcome) uses.push({ call, what, outcome })
   }
-  const bail = (call: SgNode, what: string, reason: string) => uses.push({ call, what, outcome: { bail: reason } })
+  const fix = `Change those calls by hand, then move ${binding.imported ?? local} to @opentelemetry/sdk-trace.`
+  const bail = (call: SgNode, what: string, reason: string) => uses.push({ call, what, fix, outcome: { bail: reason } })
 
   for (const n of valueUses(local, (n) => within(n, binding.declaration))) {
     bail(n, local, 'is used as a value here, so not every call to it can be found')
@@ -213,7 +216,7 @@ function usesOf(ctx: FileContext, binding: Binding, local: string, batch: boolea
     if (base?.kind() !== 'identifier' || base.text() !== local) continue
     const nameNode = classNameOf(cls)
     const name = nameNode?.text() ?? null
-    const label = name ?? 'A class'
+    const label = name ?? 'a class'
     const body = cls.field('body')
     const ctor = body?.namedChildren().find((m) => m.kind() === 'method_definition' && m.field('name')?.text() === 'constructor')
     const isExported = exported(ctx, cls, name)
@@ -226,7 +229,7 @@ function usesOf(ctx: FileContext, binding: Binding, local: string, batch: boolea
       continue
     }
     if (name === null) {
-      if (!isExported) bail(cls, label, `extends ${local} with no constructor and no name, so its calls can't be found`)
+      if (!isExported) bail(cls, 'A class', `extends ${local} with no constructor and no name, so its calls can't be found`)
       continue
     }
     if (!ctx.declaredOnce(name)) {
@@ -266,7 +269,7 @@ export const spanProcessorOptions: Rule = {
           ctx.flag(
             'manual-review',
             u.call,
-            `${u.what} ${reason}. ${b.imported} stays on ${b.module} and its other calls in this file stay as they are. Pass one options object, { exporter, ... }, by hand.`,
+            `${u.what} ${reason}. ${b.imported} stays on ${b.module} and its other calls in this file stay as they are. ${u.fix ?? 'Pass one options object, { exporter, ... }, by hand.'}`,
           )
         }
         ctx.importPlan.keep.push({ module: b.module, local })

@@ -1,3 +1,9 @@
 [
-  { "rule": "manual-review", "severity": "todo", "line": 3, "column": 19 }
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 3,
+    "column": 19,
+    "message": "BatchSpanProcessor is used as a value here, so not every call to it can be found. BatchSpanProcessor stays on @opentelemetry/sdk-trace-base and its other calls in this file stay as they are. Change those calls by hand, then move BatchSpanProcessor to @opentelemetry/sdk-trace."
+  }
 ]
