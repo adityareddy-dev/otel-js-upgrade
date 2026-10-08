@@ -1,8 +1,9 @@
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdtempSync, readdirSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeAll, expect, test } from 'vitest'
+const version = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version
 
 // Packs the dist that's already built (prepack would delete it under the other tests) and runs the bin through npx.
 const temp = mkdtempSync(join(tmpdir(), 'otel-e2e-'))
@@ -26,7 +27,7 @@ beforeAll(() => {
 test('the packed bin runs a fixture project: text report, exit 0', () => {
   const r = bin('2.12', project)
   expect(r.status, r.stderr).toBe(0)
-  expect(r.stdout.split('\n')[0]).toBe('otel-js-upgrade 0.1.0, target 2.12, dry run (nothing written)')
+  expect(r.stdout.split('\n')[0]).toBe(`otel-js-upgrade ${version}, target 2.12, dry run (nothing written)`)
   expect(r.stdout).toMatch(/\n2 files would change \(\d+ edits\)\. .* Scanned 1 file in 1 package\.\n/)
 }, 240_000)
 
