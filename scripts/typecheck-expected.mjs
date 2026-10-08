@@ -61,29 +61,33 @@ function expectedFiles(name, target) {
 
 const SPECIFIER = /(?:import|export)\s+(type\s+)?(?:([\w$]+)\s*,?\s*)?(?:\{([^}]*)\}|\*\s+as\s+[\w$]+)?\s*from\s*['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)|import\(\s*['"]([^'"]+)['"]\s*\)/g
 
-// Every module a set of files names, with the names imported from each relative one.
+// Every module a set of files names, with the names imported from each relative one and each package that isn't OpenTelemetry.
+// A namespace import, a require or an import() of one makes it opaque, typed as a whole.
 function modulesOf(texts) {
-  const bare = new Set()
+  const otel = new Set()
   const local = new Map()
+  const others = new Map()
   for (const { to, text } of texts) {
     for (const m of text.matchAll(SPECIFIER)) {
       const spec = m[4] ?? m[5] ?? m[6]
-      if (!spec.startsWith('.')) {
-        bare.add(spec.startsWith('@') ? spec.split('/').slice(0, 2).join('/') : spec.split('/')[0])
+      if (spec.startsWith('@opentelemetry/')) {
+        otel.add(spec.split('/').slice(0, 2).join('/'))
         continue
       }
-      const key = posix.join(posix.dirname(to), spec)
-      const names = local.get(key) ?? { names: new Set(), default: false }
+      const table = spec.startsWith('.') ? local : others
+      const key = spec.startsWith('.') ? posix.join(posix.dirname(to), spec) : spec
+      const names = table.get(key) ?? { names: new Set(), default: false, opaque: false }
+      if (m[4] === undefined || /\*\s+as\s/.test(m[0])) names.opaque = true
       if (m[2]) names.default = true
       for (const part of (m[3] ?? '').split(',')) {
         const imported = part.replace(/^\s*type\s+/, '').split(/\s+as\s+/)[0].trim()
         if (imported === 'default') names.default = true
         else if (imported) names.names.add(imported)
       }
-      local.set(key, names)
+      table.set(key, names)
     }
   }
-  return { bare, local }
+  return { otel, local, others }
 }
 
 function versionFor(name, target) {
@@ -113,7 +117,7 @@ function check(target) {
   }
 
   // Relative modules the fixtures import but don't hold get a stub declaring each imported name as anything.
-  const { bare, local } = modulesOf(texts)
+  const { otel: named, local, others } = modulesOf(texts)
   for (const [path, { names, default: hasDefault }] of local) {
     if (['.ts', '.d.ts', '/index.ts'].some((ext) => existsSync(join(temp, `${path}${ext}`)))) continue
     const lines = [...names].map((n) => `export declare const ${n}: any\nexport type ${n} = any`)
@@ -121,9 +125,15 @@ function check(target) {
     mkdirSync(dirname(join(temp, path)), { recursive: true })
     writeFileSync(join(temp, `${path}.d.ts`), `${lines.join('\n')}\n`)
   }
-  // Packages that aren't OpenTelemetry (react, fastify) are typed as anything.
-  const otel = [...bare].filter((n) => n.startsWith('@opentelemetry/')).sort()
-  writeFileSync(join(temp, 'others.d.ts'), [...bare].filter((n) => !n.startsWith('@opentelemetry/')).map((n) => `declare module '${n}'\n`).join(''))
+  // Packages that aren't OpenTelemetry (react, next) are typed as anything, each imported name as a value and a type.
+  const otel = [...named].sort()
+  const declared = [...others].map(([spec, { names, default: hasDefault, opaque }]) => {
+    if (opaque) return `declare module '${spec}'\n`
+    const lines = [...names].map((n) => `  export const ${n}: AnyValue\n  export type ${n} = any`)
+    if (hasDefault) lines.push('  const _default: AnyValue\n  export default _default')
+    return `declare module '${spec}' {\n${lines.join('\n')}\n}\n`
+  })
+  writeFileSync(join(temp, 'others.d.ts'), declared.join(''))
   copyFileSync(shim, join(temp, 'shim.d.ts'))
 
   const deps = Object.fromEntries([...otel, '@types/node'].map((n) => [n, n === '@types/node' ? '^24.0.0' : versionFor(n, target)]))
