@@ -1,5 +1,6 @@
 import { API_LOGS, CONTEXT_ASYNC_HOOKS, CORE, SDK_LOGS, SDK_NODE, SDK_TRACE_WEB, T2, T4, T5, T6, TRACE_SOURCES } from '../data/names.js'
 import { RULE_IDS, type RuleId, type Target } from '../data/rules.js'
+import { REMOVED } from '../data/versions.js'
 import { createContext, type Engine } from './context.js'
 import { ignoredLines, ignoresFile } from './ignore.js'
 import { brokenAt, parseFile } from './parse.js'
@@ -24,8 +25,8 @@ const MODULE_TEXT = /['"`](@opentelemetry\/[\w./-]+)['"`]/g
 const packageOf = (module: string) => module.split('/').slice(0, 2).join('/')
 const packages = (modules: Iterable<string>) => [...new Set([...modules].map(packageOf))].sort()
 
-// Every quoted @opentelemetry/ name in the text, comments included: a config string or a JSDoc import() keeps its package too.
-const modulesInText = (text: string) => packages([...text.matchAll(MODULE_TEXT)].map((m) => m[1]!))
+// A quoted removed package anywhere in the text, comments included, keeps it live (2.2). Other names in strings add nothing.
+const modulesInText = (text: string) => packages([...text.matchAll(MODULE_TEXT)].map((m) => m[1] ?? '')).filter((p) => REMOVED.includes(p))
 
 const modulesIn = (bindings: readonly Binding[], text: string) =>
   packages([...bindings.filter((b) => b.form !== 'non-literal').map((b) => b.module), ...modulesInText(text)])
