@@ -43,7 +43,14 @@ const start = (n: SgNode) => n.range().start.index
 const end = (n: SgNode) => n.range().end.index
 const same = (a: SgNode | null, b: SgNode) => a !== null && start(a) === start(b) && end(a) === end(b)
 const code = (n: SgNode) => n.namedChildren().filter((c) => c.kind() !== 'comment')
-const short = (node: SgNode) => node.text().split(/\r?\n/, 1).join('').slice(0, 40)
+// A node's first line, cut on a whole word with " ..." when it runs past 40 characters or onto more lines.
+function short(node: SgNode): string {
+  const [line = '', ...more] = node.text().split(/\r?\n/)
+  if (line.length <= 40 && more.length === 0) return line
+  let cut = line.slice(0, 40)
+  if (/[\w$]/.test(line.charAt(39)) && /[\w$]/.test(line.charAt(40))) cut = cut.replace(/[\w$]+$/, '') || cut
+  return `${cut.trimEnd()} ...`
+}
 const linkFor = (platform: Platform | null) => guide(platform === 'web' ? 'sdkTraceWeb' : 'sdkTraceNode')
 
 function providerOf(b: Binding | undefined): Platform | 'basic' | undefined {
@@ -276,6 +283,8 @@ function settingsOf(ctx: FileContext, call: SgNode): Settings | string {
   if (whole?.kind === 'default') return checkComments(args, DEFAULTS)
   if (arg.kind() !== 'object') return `register() is given ${short(arg)}, which is only known at runtime`
   const found: Record<string, Value> = {}
+  const seen = new Set<string>()
+  let runtime: string | null = null
   for (const entry of code(arg)) {
     let key: string | null = null
     let value: SgNode | null = null
@@ -290,17 +299,33 @@ function settingsOf(ctx: FileContext, call: SgNode): Settings | string {
     } else if (entry.kind() === 'spread_element') {
       return 'register() is given a spread, so its settings are only known at runtime'
     }
-    if (key === null || value === null) return `register() is given ${entry.text().slice(0, 40)}, which this tool does not read`
+    if (key === null || value === null) return `register() is given ${short(entry)}, which this tool does not read`
     if (key !== 'contextManager' && key !== 'propagator') return `register() is given the key ${key}, which this tool does not know`
-    if (key in found) return `register() is given ${key} twice`
+    if (seen.has(key)) return `register() is given ${key} twice`
+    seen.add(key)
     const v = valueOf(ctx, value)
-    if (v === null) return `register() is given ${key}: ${short(value)}, which is only known at runtime`
+    if (v === null) {
+      // a ?? new X() is never undefined, so a later runtime value is the one worth naming.
+      const message = `register() is given ${key}: ${short(value)}, which is only known at runtime`
+      if (!hasFallback(value)) return message
+      runtime ??= message
+      continue
+    }
     found[key] = v
   }
+  if (runtime !== null) return runtime
   return checkComments(args, {
     contextManager: found['contextManager'] ?? { kind: 'default' },
     propagator: found['propagator'] ?? { kind: 'default' },
   })
+}
+
+function hasFallback(value: SgNode): boolean {
+  let v: SgNode | null = value
+  while (v?.kind() === 'parenthesized_expression') v = code(v)[0] ?? null
+  if (v?.kind() !== 'binary_expression') return false
+  const op = v.field('operator')?.text()
+  return (op === '??' || op === '||') && v.field('right')?.kind() === 'new_expression'
 }
 
 // A comment is kept only when it sits inside a value whose text is copied.

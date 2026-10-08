@@ -1,0 +1,17 @@
+[
+  { "rule": "manual-review", "severity": "todo", "line": 2, "column": 10 },
+  {
+    "rule": "register-unresolved",
+    "severity": "todo",
+    "line": 6,
+    "column": 3,
+    "message": "register() is given propagator: options.propagator ?? new ..., which is only known at runtime, so it was not expanded. Set the globals by hand with trace.setGlobalTracerProvider, context.setGlobalContextManager and propagation.setGlobalPropagator, since TracerProvider has no register()."
+  },
+  {
+    "rule": "register-unresolved",
+    "severity": "todo",
+    "line": 11,
+    "column": 3,
+    "message": "register() is given get contextManager() { ..., which this tool does not read, so it was not expanded. Set the globals by hand with trace.setGlobalTracerProvider, context.setGlobalContextManager and propagation.setGlobalPropagator, since TracerProvider has no register()."
+  }
+]
