@@ -623,5 +623,17 @@ describe('pass A', () => {
     expect(context('a.ts', `import { trace } from '@opentelemetry/api'\n${lazy}`).lazy).toBe(false)
     expect(context('a.js', `const api = require('@opentelemetry/api')\n${lazy}`).lazy).toBe(false)
     expect(context('a.ts', 'const x = 1\n').lazy).toBe(false)
+    expect(context('a.ts', `import type { Tracer } from '@opentelemetry/api'\n${lazy}`).lazy).toBe(true)
+    expect(context('a.ts', `export type { Span } from '@opentelemetry/api'\n${lazy}`).lazy).toBe(true)
+  })
+
+  test('a quoted package name outside an import keeps its package in modules', () => {
+    const text = [
+      "import { trace } from '@opentelemetry/api'",
+      "/** @type {import('@opentelemetry/sdk-trace-base').Span} */",
+      "export const config = { serverExternalPackages: ['@opentelemetry/sdk-node', `@opentelemetry/${name}`] }",
+      '',
+    ].join('\n')
+    expect(run(text).modules).toEqual(['@opentelemetry/api', '@opentelemetry/sdk-node', '@opentelemetry/sdk-trace-base'])
   })
 })
