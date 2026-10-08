@@ -351,15 +351,16 @@ export const imports: Rule = {
     // Adds a rewritten or existing declaration already brings in need nothing.
     const satisfied = (a: ImportAdd) => bound.some((x) => x.module === a.module && x.name === a.name && x.local === a.local)
     const pending = ctx.importPlan.add.filter((a) => !satisfied(a))
-    if (pending.length > 0 && ctx.lazy) throw new Error('a static import would defeat the lazy load of this file')
     const usesImportType = ctx.tree
       .findAll({ rule: { kind: 'import_statement' } })
       .some((n) => hasKeyword(n, 'type'))
     const ts = ctx.lang !== Lang.JavaScript
+    // An import type is erased at build time, so only a value add would defeat a lazy load.
+    if (ctx.lazy && pending.some((a) => a.kind === 'value' || !ts)) throw new Error('a static import would defeat the lazy load of this file')
     const form = fileForm(ctx)
     const fresh = new Map<string, { value: ImportAdd[]; type: ImportAdd[] }>()
     for (const a of pending) {
-      const asType = a.kind === 'type' && ts && (usesImportType || form === 'cjs')
+      const asType = a.kind === 'type' && ts && (usesImportType || form === 'cjs' || ctx.lazy)
       const target = order.find((p) => {
         if (p.newModule !== a.module || p.elements.every((e) => e.outcome !== 'move')) return false
         const b = p.bindings[0]

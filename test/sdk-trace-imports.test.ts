@@ -58,3 +58,174 @@ describe('adds', () => {
     )
   })
 })
+
+// A register stub that leaves a call it could not expand, the way R3 does.
+const unresolved: Rule = {
+  id: 'register',
+  targets: TARGETS,
+  run(ctx: FileContext) {
+    const call = ctx.tree.find({ rule: { pattern: '$P.register()' } })
+    if (call) ctx.flag('register-unresolved', call, 'register() could not be expanded.')
+    return []
+  },
+}
+
+const lines = (...l: string[]) => l.join('\n') + '\n'
+const PROPAGATORS: [string, string, ImportKind][] = [
+  [CORE, 'W3CTraceContextPropagator', 'value'],
+  [CORE, 'CompositePropagator', 'value'],
+  [CORE, 'W3CBaggagePropagator', 'value'],
+]
+
+describe('adds, more', () => {
+  test('in CommonJS a new declaration goes right after the first OpenTelemetry require', () => {
+    const text = lines(
+      "'use strict';",
+      "const { trace } = require('@opentelemetry/api');",
+      "const express = require('express');",
+      "const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node');",
+      '',
+      'const provider = new NodeTracerProvider();',
+    )
+    const stub = wants([[CORE, 'W3CTraceContextPropagator', 'value'], [API, 'context', 'value'], [API, 'trace', 'value']])
+    expect(run('a.js', text, [stub, sdkTraceImports, imports]).text).toBe(
+      lines(
+        "'use strict';",
+        "const { trace } = require('@opentelemetry/api');",
+        "const { context } = require('@opentelemetry/api');",
+        "const { W3CTraceContextPropagator } = require('@opentelemetry/core');",
+        "const express = require('express');",
+        "const { TracerProvider } = require('@opentelemetry/sdk-trace');",
+        '',
+        'const provider = new TracerProvider();',
+      ),
+    )
+  })
+
+  test('a name from a module this pass wrote is appended to that declaration', () => {
+    const text = lines("import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';", '', 'const provider = new WebTracerProvider();')
+    expect(run('a.ts', text, [wants([[SDK_TRACE, 'StackContextManager', 'value']]), sdkTraceImports, imports]).text).toBe(
+      lines("import { TracerProvider, StackContextManager } from '@opentelemetry/sdk-trace';", '', 'const provider = new TracerProvider();'),
+    )
+  })
+
+  // The rules only run on a file that names @opentelemetry/, here in a comment.
+  test('without any import it goes after the shebang, the directives and the leading comments', () => {
+    const text = lines('#!/usr/bin/env node', "'use strict';", "'use client';", '// Starts @opentelemetry/ tracing.', '// Second line.', '', 'main();')
+    expect(run('a.js', text, [wants([[API, 'trace', 'value']]), imports]).text).toBe(
+      lines('#!/usr/bin/env node', "'use strict';", "'use client';", '// Starts @opentelemetry/ tracing.', '// Second line.', "import { trace } from '@opentelemetry/api';", '', 'main();'),
+    )
+    expect(run('a.cjs', lines("'use strict';", '// Starts @opentelemetry/ tracing.', '', 'main();'), [wants([[API, 'trace', 'value']]), imports]).text).toBe(
+      lines("'use strict';", '// Starts @opentelemetry/ tracing.', "const { trace } = require('@opentelemetry/api');", '', 'main();'),
+    )
+  })
+
+  test('past 80 columns it is multi-line when the file has multi-line imports, one line otherwise', () => {
+    const multi = lines('import {', '  NodeTracerProvider,', "} from '@opentelemetry/sdk-trace-node';", '', 'const provider = new NodeTracerProvider();')
+    expect(run('a.ts', multi, [wants([...PROPAGATORS, [API, 'context', 'value']]), sdkTraceImports, imports]).text).toBe(
+      lines(
+        'import {',
+        '  TracerProvider,',
+        "} from '@opentelemetry/sdk-trace';",
+        "import { context } from '@opentelemetry/api';",
+        'import {',
+        '  CompositePropagator,',
+        '  W3CBaggagePropagator,',
+        '  W3CTraceContextPropagator,',
+        "} from '@opentelemetry/core';",
+        '',
+        'const provider = new TracerProvider();',
+      ),
+    )
+    const single = lines("import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';")
+    expect(run('a.ts', single, [wants(PROPAGATORS), sdkTraceImports, imports]).text).toBe(
+      lines(
+        "import { TracerProvider } from '@opentelemetry/sdk-trace';",
+        "import { CompositePropagator, W3CBaggagePropagator, W3CTraceContextPropagator } from '@opentelemetry/core';",
+      ),
+    )
+  })
+
+  test('the indent of a multi-line declaration comes from the imports, not the license header', () => {
+    const text = lines(
+      '/*',
+      '  Copyright The OpenTelemetry Authors',
+      '  SPDX-License-Identifier: Apache-2.0',
+      '*/',
+      'import {',
+      '    NodeTracerProvider',
+      "} from '@opentelemetry/sdk-trace-node';",
+    )
+    expect(run('a.ts', text, [wants(PROPAGATORS), sdkTraceImports, imports]).text).toBe(
+      lines(
+        '/*',
+        '  Copyright The OpenTelemetry Authors',
+        '  SPDX-License-Identifier: Apache-2.0',
+        '*/',
+        'import {',
+        '    TracerProvider',
+        "} from '@opentelemetry/sdk-trace';",
+        'import {',
+        '    CompositePropagator,',
+        '    W3CBaggagePropagator,',
+        '    W3CTraceContextPropagator',
+        "} from '@opentelemetry/core';",
+      ),
+    )
+  })
+
+  test('type names go in import type when the file uses it, else as type specifiers', () => {
+    const stub = () => wants([[API, 'Tracer', 'type'], [API, 'context', 'value']])
+    const withType = lines("import type { Span } from '@opentelemetry/api';", "import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';")
+    expect(run('a.ts', withType, [stub(), sdkTraceImports, imports]).text).toBe(
+      lines(
+        "import type { Span } from '@opentelemetry/api';",
+        "import { TracerProvider } from '@opentelemetry/sdk-trace';",
+        "import { context } from '@opentelemetry/api';",
+        "import type { Tracer } from '@opentelemetry/api';",
+      ),
+    )
+    const without = lines("import { trace } from '@opentelemetry/api';")
+    expect(run('a.ts', without, [stub(), imports]).text).toBe(
+      lines("import { trace } from '@opentelemetry/api';", "import { context, type Tracer } from '@opentelemetry/api';"),
+    )
+  })
+
+  test('a lazy file takes a type add as import type and refuses a value add', () => {
+    const text = lines('export async function start() {', "  const { trace } = await import('@opentelemetry/api');", '  return trace;', '}')
+    const typed = run('a.ts', text, [wants([[API, 'Tracer', 'type']]), imports])
+    expect(typed.text).toBe("import type { Tracer } from '@opentelemetry/api';\n" + text)
+    const valued = run('a.ts', text, [wants([[API, 'context', 'value']]), imports])
+    expect(valued.status).toBe('error')
+    expect(valued.reason).toContain('lazy load')
+  })
+})
+
+describe('kept', () => {
+  test('a provider stays on its package when a register() call could not be expanded', () => {
+    const text = lines(
+      "import { NodeTracerProvider, ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';",
+      '',
+      'const provider = new NodeTracerProvider();',
+      'provider.register();',
+      'const exporter = new ConsoleSpanExporter();',
+    )
+    const r = run('a.ts', text, [unresolved, sdkTraceImports, imports])
+    expect(r.text).toBe(
+      lines(
+        "import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace';",
+        "import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';",
+        '',
+        'const provider = new NodeTracerProvider();',
+        'provider.register();',
+        'const exporter = new ConsoleSpanExporter();',
+      ),
+    )
+    expect(r.flags.find((f) => f.rule === 'manual-review')).toMatchObject({
+      line: 1,
+      column: 10,
+      message:
+        'NodeTracerProvider left on @opentelemetry/sdk-trace-node because a register() call in this file could not be expanded, TracerProvider has no register().',
+    })
+  })
+})
