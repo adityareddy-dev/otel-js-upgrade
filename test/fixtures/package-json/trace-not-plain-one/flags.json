@@ -1,0 +1,10 @@
+[
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "todo",
+    "line": 4,
+    "column": 5,
+    "message": "@opentelemetry/sdk-trace-web catalog: isn't a plain version, so @opentelemetry/sdk-trace-web stays. Replace it with @opentelemetry/sdk-trace 3.0.0 in pnpm-workspace.yaml by hand."
+  }
+]

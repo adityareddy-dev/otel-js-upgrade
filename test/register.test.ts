@@ -67,7 +67,7 @@ function body(path: string, text: string): string {
 }
 
 const read = (path: string) => readFileSync(path, 'utf8')
-type Want = { rule: string; severity: string; line: number; column: number }
+type Want = { rule: string; severity: string; line: number; column: number; message?: string }
 
 test('the register fixtures are there', () => {
   expect(cases.length).toBeGreaterThan(30)
@@ -97,7 +97,10 @@ for (const dir of cases) {
         expect(body(input, result.text), where).toBe(body(input, apply(expected)))
         const got = result.flags
           .filter((f) => OWN.has(f.rule))
-          .map(({ rule, severity, line, column }) => ({ rule, severity, line, column }))
+          .map(({ rule, severity, line, column, message }) => {
+            const asked = wanted.some((w) => w.line === line && w.column === column && w.message !== undefined)
+            return { rule, severity, line, column, ...(asked ? { message } : {}) }
+          })
         const order = (a: Want, b: Want) => a.line - b.line || a.column - b.column || a.rule.localeCompare(b.rule)
         expect(got, `${where}: flags`).toEqual([...wanted].sort(order))
         const again = runFile({ path: input, text: result.text, target, rules })
