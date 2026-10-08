@@ -76,7 +76,7 @@ export function createContext(input: ContextInput): Engine {
       if (starts[mid]! <= index) lo = mid
       else hi = mid - 1
     }
-    const bomShift = lo === 0 && original.startsWith('﻿') && index > 0 ? 1 : 0
+    const bomShift = lo === 0 && original.startsWith('\uFEFF') && index > 0 ? 1 : 0
     return { line: lo + 1, column: index - starts[lo]! + 1 - bomShift }
   }
 

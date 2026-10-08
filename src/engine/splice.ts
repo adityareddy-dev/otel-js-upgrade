@@ -17,7 +17,7 @@ export function splice(text: string, edits: readonly Edit[]): string {
     }
     const prev = sorted[i - 1]
     if (prev && edit.start < prev.end) {
-      throw new Error(`edits overlap: ${prev.start}-${prev.end} and ${edit.start}-${edit.end}`)
+      throw new Error(`overlapping edits at ${edit.start}-${Math.min(edit.end, prev.end)}`)
     }
   }
   let out = text

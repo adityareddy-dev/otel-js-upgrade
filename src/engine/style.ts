@@ -95,6 +95,6 @@ export function detectStyle(text: string, root: SgNode): Style {
     quote: detectQuote(root),
     semi: detectSemi(root),
     indent: detectIndent(text, root),
-    bom: text.startsWith('﻿'),
+    bom: text.startsWith('\uFEFF'),
   }
 }

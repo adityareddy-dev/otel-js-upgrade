@@ -112,14 +112,11 @@ export function runFile(input: RunInput): FileResult {
 
   if (parsed.broken) {
     const index = parsed.broken.range().start.index
-    const near = JSON.stringify(text.slice(index, index + 40))
+    const near = text.slice(text.lastIndexOf('\n', index - 1) + 1).split(/\r?\n/)[0]!.trim().slice(0, 40)
     const { line, column } = ctx.locate(index)
-    ctx.flag(
-      'manual-review',
-      index,
-      `The parser can't read ${near} at ${line}:${column}, the file may be valid TypeScript. Migrate it by hand or pass --ignore.`,
-    )
-    return done({ ...skipped('parse error'), flags: [...ctx.flags] })
+    const reason = `the parser can't read ${near} at ${line}:${column}, the file may be valid TypeScript. Migrate it by hand or pass --ignore.`
+    ctx.flag('manual-review', index, reason)
+    return done({ ...skipped(reason), flags: [...ctx.flags] })
   }
 
   const ignored = ignoredLines(parsed.root)
@@ -134,7 +131,7 @@ export function runFile(input: RunInput): FileResult {
       ctx.apply(edits)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      return done({ ...unchanged, status: 'error', reason: `${rule.id}: ${message}`, modules: modulesInText(text) })
+      return done({ ...unchanged, status: 'error', reason: `rule ${rule.id} threw: ${message}, file not touched`, modules: modulesInText(text) })
     }
     if (ctx.skipped !== null) {
       return done({ ...unchanged, status: 'skipped', reason: ctx.skipped, flags: finish(), modules: modulesIn(ctx.original.bindings) })
