@@ -283,7 +283,7 @@ const REPLACEMENT: Readonly<Record<string, string>> = {
 }
 
 const NAMED = /@opentelemetry\/[\w.-]+/g
-const JSDOC_IMPORT = /import\(\s*['"](@opentelemetry\/[\w./-]+)['"]\s*\)/g
+const JSDOC_IMPORT = /import\(\s*['"](@opentelemetry\/[\w./-]+)['"]\s*\)|@import\s[^'"]*?from\s*['"](@opentelemetry\/[\w./-]+)['"]/g
 
 // The first removed package a piece of text names.
 const removedIn = (text: string) => [...text.matchAll(NAMED)].map((m) => m[0]).find((name) => REMOVED.includes(name))
@@ -308,7 +308,7 @@ function jsdocImports(ctx: FileContext) {
     const text = comment.text()
     if (!text.startsWith('/**')) continue
     for (const m of text.matchAll(JSDOC_IMPORT)) {
-      const pkg = packageOf(m[1] ?? '')
+      const pkg = packageOf(m[1] ?? m[2] ?? '')
       if (!REMOVED.includes(pkg)) continue
       ctx.flag(
         'manual-review',
