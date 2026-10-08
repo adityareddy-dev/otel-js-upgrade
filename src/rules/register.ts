@@ -465,6 +465,15 @@ function run(ctx: FileContext): Edit[] {
     flagged = true
   }
   const expansions: Expansion[] = []
+  // provider['register']() is never expanded, but a provider renamed under it would lose the method.
+  for (const sub of ctx.tree.findAll({ rule: { kind: 'subscript_expression' } })) {
+    const index = sub.field('index')
+    const object = sub.field('object')
+    if (!object || index?.kind() !== 'string' || index.text().slice(1, -1) !== 'register') continue
+    const r = object.kind() === 'identifier' ? receiverOf(ctx, object.text()) : ({ provider: false } as const)
+    if (!r.provider && !looksLikeProvider(object)) continue
+    fail(sub, r.provider ? r.platform : null, `register() is reached through ${short(object)}['register'], which this tool doesn't expand. ${BY_HAND}`)
+  }
   for (const m of ctx.tree.findAll({ rule: { kind: 'member_expression' } })) {
     if (!isRegister(m)) continue
     const receiver = m.field('object')
