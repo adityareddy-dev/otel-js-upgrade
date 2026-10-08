@@ -213,7 +213,7 @@ function usesOf(ctx: FileContext, binding: Binding, local: string, batch: boolea
     if (base?.kind() !== 'identifier' || base.text() !== local) continue
     const nameNode = classNameOf(cls)
     const name = nameNode?.text() ?? null
-    const label = name ?? 'a class'
+    const label = name ?? 'A class'
     const body = cls.field('body')
     const ctor = body?.namedChildren().find((m) => m.kind() === 'method_definition' && m.field('name')?.text() === 'constructor')
     const isExported = exported(ctx, cls, name)
