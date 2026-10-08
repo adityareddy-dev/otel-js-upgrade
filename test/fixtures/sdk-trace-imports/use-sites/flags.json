@@ -1,0 +1,16 @@
+[
+  {
+    "rule": "instanceof-provider",
+    "severity": "note",
+    "line": 7,
+    "column": 52,
+    "message": "instanceof NodeTracerProvider now also matches the TracerProvider of every other platform, since the Node, web and basic providers are one class in @opentelemetry/sdk-trace."
+  },
+  {
+    "rule": "public-api",
+    "severity": "note",
+    "line": 8,
+    "column": 10,
+    "message": "NodeTracerProvider is exported from this file and now names the class that replaced it in 3.0. Modules that import it from here get that class."
+  }
+]

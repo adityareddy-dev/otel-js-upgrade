@@ -1,0 +1,9 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 2,
+    "column": 10,
+    "message": "NodeTracerProvider and BasicTracerProvider would both become TracerProvider, one imported as a type and one as a value, so they were left as they are."
+  }
+]

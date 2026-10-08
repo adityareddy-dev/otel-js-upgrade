@@ -1,0 +1,9 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 1,
+    "column": 10,
+    "message": "NodeTracerProvider left on @opentelemetry/sdk-trace-node because class MyProvider extends it, TracerProvider has no register()."
+  }
+]
