@@ -1,0 +1,10 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "note",
+    "line": 7,
+    "column": 3,
+    "message": "metricReaders needs @opentelemetry/sdk-node 0.204.0 or later, so metricReader was left as it is. Raise sdk-node, then run again.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationmetricreader"
+  }
+]

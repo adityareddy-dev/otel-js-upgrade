@@ -1,0 +1,3 @@
+[
+  { "rule": "register-unresolved", "severity": "todo", "line": 3, "column": 1 }
+]

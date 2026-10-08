@@ -1,0 +1,10 @@
+[
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "todo",
+    "line": 5,
+    "column": 5,
+    "message": "This package peers on the 2.x SDK. Its code isn't rewritten, since the code can't move ahead of that peer range, and widening or moving the range is a breaking change for your users. Change the peer range yourself, then run this again."
+  }
+]

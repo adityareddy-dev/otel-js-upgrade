@@ -1,0 +1,15 @@
+{
+  "name": "app",
+  "dependencies": {
+    "@opentelemetry/core": "^2.0.0",
+    "@opentelemetry/resources": "^2.0.0",
+    "@opentelemetry/sdk-trace": "^2.12.0"
+  },
+  "overrides": {
+    "@opentelemetry/core": "$@opentelemetry/core",
+    "@opentelemetry/sdk-trace-base": "2.0.0"
+  },
+  "resolutions": {
+    "**/@opentelemetry/resources": "2.0.0"
+  }
+}

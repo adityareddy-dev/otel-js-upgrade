@@ -1,0 +1,34 @@
+[
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "note",
+    "line": 4,
+    "column": 5,
+    "message": "@opentelemetry/core 2.x left as is, set it to 3.0.0 by hand"
+  },
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "note",
+    "line": 5,
+    "column": 5,
+    "message": "@opentelemetry/resources >=2.0.0 <3.0.0 left as is, set it to 3.0.0 by hand"
+  },
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "note",
+    "line": 7,
+    "column": 5,
+    "message": "@opentelemetry/exporter-trace-otlp-http latest left as is, set it to 0.300.0 by hand"
+  },
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "note",
+    "line": 8,
+    "column": 5,
+    "message": "@opentelemetry/sdk-node workspace:^ left as is, set it to 0.300.0 by hand"
+  }
+]

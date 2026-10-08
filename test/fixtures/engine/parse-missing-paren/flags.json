@@ -1,0 +1,9 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 2,
+    "column": 9,
+    "message": "the parser can't read foo(a, b; at 2:9, the file may be valid TypeScript. Migrate it by hand or pass --ignore."
+  }
+]

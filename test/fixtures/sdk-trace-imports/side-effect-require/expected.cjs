@@ -1,0 +1,1 @@
+require('@opentelemetry/sdk-trace');

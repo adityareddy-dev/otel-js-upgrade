@@ -1,0 +1,1 @@
+{ "rules": ["span-processor-options", "sdk-trace-imports", "flags", "imports"] }

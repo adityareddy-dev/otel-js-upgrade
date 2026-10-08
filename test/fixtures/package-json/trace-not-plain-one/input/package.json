@@ -1,0 +1,6 @@
+{
+  "name": "app",
+  "dependencies": {
+    "@opentelemetry/sdk-trace-web": "catalog:"
+  }
+}

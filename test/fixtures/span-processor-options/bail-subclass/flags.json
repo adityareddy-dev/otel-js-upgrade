@@ -1,0 +1,4 @@
+[
+  { "rule": "manual-review", "severity": "todo", "line": 3, "column": 1 },
+  { "rule": "manual-review", "severity": "todo", "line": 7, "column": 7 }
+]

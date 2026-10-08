@@ -1,0 +1,6 @@
+{
+  "name": "latest",
+  "dependencies": {
+    "@opentelemetry/core": "latest"
+  }
+}

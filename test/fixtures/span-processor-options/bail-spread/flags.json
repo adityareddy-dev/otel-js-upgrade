@@ -1,0 +1,9 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 4,
+    "column": 22,
+    "message": "new BatchSpanProcessor(...) has a spread argument. BatchSpanProcessor stays on @opentelemetry/sdk-trace-base and its other calls in this file stay as they are. Pass one options object, { exporter, ... }, by hand."
+  }
+]

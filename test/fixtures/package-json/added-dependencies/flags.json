@@ -1,0 +1,10 @@
+[
+  {
+    "file": "package.json",
+    "rule": "contrib-packages",
+    "severity": "note",
+    "line": 6,
+    "column": 5,
+    "message": "Contrib packages are left as they are, their 3.0-ready versions aren't known yet: @opentelemetry/instrumentation-express."
+  }
+]

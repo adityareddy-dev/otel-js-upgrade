@@ -1,0 +1,10 @@
+[
+  {
+    "rule": "type-no-equivalent",
+    "severity": "todo",
+    "line": 1,
+    "column": 31,
+    "message": "BufferConfig has no equivalent in @opentelemetry/sdk-trace, it was left on @opentelemetry/sdk-trace-base. Hint: Omit<BatchSpanProcessorOptions, 'exporter'>.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#opentelemetrysdk-trace-base-package-removed"
+  }
+]

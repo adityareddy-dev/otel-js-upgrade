@@ -1,0 +1,6 @@
+{
+  "name": "tickets-server",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

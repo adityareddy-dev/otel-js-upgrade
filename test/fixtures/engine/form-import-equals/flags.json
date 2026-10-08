@@ -1,0 +1,9 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 1,
+    "column": 8,
+    "message": "Import-equals (import ns = require()) of @opentelemetry/sdk-trace-base, not rewritten in 0.1.0. Move it by hand."
+  }
+]

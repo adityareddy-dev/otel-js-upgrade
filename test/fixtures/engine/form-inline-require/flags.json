@@ -1,0 +1,9 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 1,
+    "column": 23,
+    "message": "Inline require (require().A) of @opentelemetry/sdk-trace-base, not rewritten in 0.1.0. Move it by hand."
+  }
+]

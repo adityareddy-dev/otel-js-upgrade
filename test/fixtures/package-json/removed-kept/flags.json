@@ -1,0 +1,35 @@
+[
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "todo",
+    "line": 4,
+    "column": 5,
+    "message": "@opentelemetry/api-logs stays, since code in this package still imports it. Remove it once that code imports the Logs API from @opentelemetry/api."
+  },
+  {
+    "file": "package.json",
+    "rule": "jaeger-exporter",
+    "severity": "todo",
+    "line": 6,
+    "column": 5,
+    "message": "@opentelemetry/exporter-jaeger has no 3.0 release. Remove it once no code uses it. Keeping it pins @opentelemetry/api below 1.10.0, which 3.0's instrumentation and sdk-node need."
+  },
+  {
+    "file": "package.json",
+    "rule": "removed-package",
+    "severity": "todo",
+    "line": 7,
+    "column": 5,
+    "message": "@opentelemetry/shim-opentracing has no 3.0 release. Remove it once no code uses it. Keeping it pins @opentelemetry/api below 1.10.0, which 3.0's instrumentation and sdk-node need.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/CHANGELOG.md"
+  },
+  {
+    "file": "src/logs.ts",
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 1,
+    "column": 10,
+    "message": "logs from @opentelemetry/api-logs is not rewritten in 0.1.0. Move it by hand."
+  }
+]

@@ -1,0 +1,4 @@
+[
+  { "file": "package.json", "rule": "deep-import", "severity": "todo", "line": 4, "column": 15, "message": "@opentelemetry/sdk-trace-base in imports names @opentelemetry/sdk-trace-base, which 3.0 removed. Point it at @opentelemetry/sdk-trace." },
+  { "file": "package.json", "rule": "deep-import", "severity": "todo", "line": 6, "column": 18 }
+]

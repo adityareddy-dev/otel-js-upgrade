@@ -1,0 +1,3 @@
+[
+  { "file": "package.json", "rule": "package-json-skipped", "severity": "todo", "line": 5, "column": 5 }
+]

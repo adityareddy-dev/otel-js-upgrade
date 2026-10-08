@@ -147,3 +147,6 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Fixtures keep their .env files and build folders
+!test/fixtures/**

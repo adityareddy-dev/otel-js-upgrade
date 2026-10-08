@@ -1,0 +1,19 @@
+[
+  {
+    "file": "package.json",
+    "rule": "jaeger-exporter",
+    "severity": "todo",
+    "line": 6,
+    "column": 5,
+    "message": "@opentelemetry/exporter-jaeger has no 3.0 release. Remove it once no code uses it."
+  },
+  {
+    "file": "package.json",
+    "rule": "removed-package",
+    "severity": "todo",
+    "line": 7,
+    "column": 5,
+    "message": "@opentelemetry/shim-opentracing has no 3.0 release. Remove it once no code uses it.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/CHANGELOG.md"
+  }
+]

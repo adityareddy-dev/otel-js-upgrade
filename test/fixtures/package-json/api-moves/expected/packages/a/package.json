@@ -1,0 +1,8 @@
+{
+  "name": "a",
+  "dependencies": {
+    "@opentelemetry/api": "1.10.0",
+    "@opentelemetry/core": "3.0.0",
+    "@opentelemetry/propagator-jaeger": "2.0.0"
+  }
+}
