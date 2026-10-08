@@ -30,10 +30,10 @@ const packages = (modules: Iterable<string>) => [...new Set([...modules].map(pac
 // A file that never got a clean parse: a quoted removed package anywhere in its text keeps it live (2.2).
 const modulesInText = (text: string) => packages([...text.matchAll(MODULE_TEXT)].map((m) => m[1] ?? '')).filter((p) => REMOVED.includes(p))
 
-const JSDOC_IMPORT = /import\(\s*['"](@opentelemetry\/[\w./-]+)['"]\s*\)/g
+const JSDOC_IMPORT = /import\(\s*['"](@opentelemetry\/[\w./-]+)['"]\s*\)|@import\s[^'"]*?from\s*['"](@opentelemetry\/[\w./-]+)['"]/g
 const REFERENCE_TYPES = /^\/\/\/\s*<reference\s+types\s*=\s*['"](@opentelemetry\/[\w./-]+)['"]/
 
-// A parsed file: only a string, a JSDoc import() or a /// <reference types> keeps a removed package live, not a plain comment (2.2).
+// A parsed file: only a string, a JSDoc import() or @import, or a /// <reference types> keeps a removed package live, not a plain comment (2.2).
 function modulesInTree(root: SgNode): string[] {
   const named: string[] = []
   for (const s of root.findAll({ rule: { any: [{ kind: 'string' }, { kind: 'template_string' }], regex: OTEL } })) {
@@ -41,7 +41,7 @@ function modulesInTree(root: SgNode): string[] {
   }
   for (const c of root.findAll({ rule: { kind: 'comment', regex: OTEL } })) {
     const text = c.text()
-    if (text.startsWith('/**')) named.push(...[...text.matchAll(JSDOC_IMPORT)].map((m) => m[1] ?? ''))
+    if (text.startsWith('/**')) named.push(...[...text.matchAll(JSDOC_IMPORT)].map((m) => m[1] ?? m[2] ?? ''))
     const reference = REFERENCE_TYPES.exec(text)?.[1]
     if (reference !== undefined) named.push(reference)
   }

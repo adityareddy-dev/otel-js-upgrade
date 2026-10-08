@@ -485,6 +485,7 @@ describe('flags and ignores', () => {
     expect(modulesOf(`${head}/**\n * import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';\n */\nexport const a = 1\n`)).toEqual([api])
     expect(modulesOf(`${head}export const external = ['@opentelemetry/sdk-trace-node']\n`)).toEqual([api, '@opentelemetry/sdk-trace-node'])
     expect(modulesOf(`${head}/** @type {import('@opentelemetry/sdk-trace-base').SpanExporter} */\nlet e\n`)).toEqual([api, '@opentelemetry/sdk-trace-base'])
+    expect(modulesOf(`${head}/** @import { SpanExporter } from '@opentelemetry/sdk-trace-base' */\nlet e\n`)).toEqual([api, '@opentelemetry/sdk-trace-base'])
     expect(modulesOf(`/// <reference types="@opentelemetry/sdk-trace-web" />\n${head}`)).toEqual([api, '@opentelemetry/sdk-trace-web'])
   })
 
