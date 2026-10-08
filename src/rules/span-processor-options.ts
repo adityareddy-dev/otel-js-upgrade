@@ -121,12 +121,17 @@ function rewrite(ctx: FileContext, call: SgNode, batch: boolean): Outcome | null
   // Multi-line literal, laid out as in opentelemetry-demo #4082.
   const close = c.children().at(-1)!
   const p = first ? leadingSpace(ctx.text, first.range().start.index) : leadingSpace(ctx.text, close.range().start.index) + ctx.style.indent
-  const colE = eStart - lineStart(ctx.text, eStart)
+  // E's later lines keep their place against the indent of the line E starts on.
+  const colE = leadingSpace(ctx.text, eStart).length
   const sameLine = inside.filter((n) => isComment(n) && lineOf(n) === lineOf(open))
   const after = (sameLine.at(-1) ?? open).range().end.index
   const eol = ctx.eolAt(after)
-  const head = ctx.text.slice(cStart, after)
-  return { edits: [{ start: eStart, end: after, text: `${head}${eol}${p}${prop(shifted(ctx, e, p.length - colE))},` }] }
+  // When E and the brace each start a line, the brace keeps its own indent.
+  const startsLine = (at: number) => lineStart(ctx.text, at) + leadingSpace(ctx.text, at).length === at
+  const own = startsLine(eStart) && startsLine(cStart)
+  const head = ctx.text.slice(own ? lineStart(ctx.text, cStart) : cStart, after)
+  const start = own ? lineStart(ctx.text, eStart) : eStart
+  return { edits: [{ start, end: after, text: `${head}${eol}${p}${prop(shifted(ctx, e, p.length - colE))},` }] }
 }
 
 // The value of a class's extends clause: JS puts it under class_heritage, TypeScript under extends_clause.

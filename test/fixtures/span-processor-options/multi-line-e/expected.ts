@@ -14,7 +14,7 @@ export const nested = [
 ]
 
 export const deep = new BatchSpanProcessor(
-        {
+  {
     exporter: wrap(new ConsoleSpanExporter(), {
       label: 'deep',
     }),
@@ -24,7 +24,7 @@ export const deep = new BatchSpanProcessor(
 
 export const inline = new BatchSpanProcessor({
   exporter: wrap(new ConsoleSpanExporter(), {
-  label: 'inline',
-}),
+    label: 'inline',
+  }),
   maxQueueSize: 100,
 })
