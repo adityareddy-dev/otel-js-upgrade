@@ -255,7 +255,7 @@ function needsOf(platform: Platform, settings: Settings, setters: readonly Sette
   return needs
 }
 
-// A name already brought in by a dynamic destructure in the function the call sits in.
+// A name already brought in by a dynamic destructure in the function the call sits in, above the call.
 function boundNearby(ctx: FileContext, at: SgNode, module: string, name: string): string | null {
   const fn = nearestFunction(at)
   const modules = name === 'StackContextManager' ? [SDK_TRACE, SDK_TRACE_WEB] : [module]
@@ -266,6 +266,7 @@ function boundNearby(ctx: FileContext, at: SgNode, module: string, name: string)
       x.imported === name &&
       x.local !== null &&
       ctx.declaredOnce(x.local) &&
+      end(x.declaration) <= start(at) &&
       x.scope !== null &&
       fn !== null &&
       same(x.scope, fn),
@@ -279,11 +280,18 @@ function localFor(ctx: FileContext, at: SgNode, module: string, name: string): s
   if (name === 'StackContextManager') {
     // Rule I moves a static StackContextManager from sdk-trace-web to sdk-trace under the same local.
     const web = ctx.bindings.find(
-      (b) => b.module === SDK_TRACE_WEB && b.imported === name && b.scope === null && b.local !== null && b.kind === 'value' && ctx.declaredOnce(b.local),
+      (b) =>
+        b.module === SDK_TRACE_WEB &&
+        b.imported === name &&
+        b.scope === null &&
+        b.local !== null &&
+        b.kind === 'value' &&
+        ctx.declaredOnce(b.local) &&
+        (b.form !== 'cjs-destructure' || end(b.declaration) <= start(at)),
     )
     if (web?.local) return web.local
   }
-  return ctx.allocate(module, name, 'value')
+  return ctx.allocate(module, name, 'value', start(at))
 }
 
 // Lines after the first move by the statement's indent minus the indent of the line the value starts on.

@@ -178,7 +178,8 @@ export interface FileContext {
   resolve(name: string): Binding | undefined
   member(object: string, property: string): Member | undefined
   declaredOnce(name: string): boolean
-  allocate(module: string, name: string, kind: ImportKind): string
+  // at: where the name is used, an offset into ctx.text. A require that ends after it isn't reused.
+  allocate(module: string, name: string, kind: ImportKind, at?: number): string
   // The line ending for a line break inserted at this offset into ctx.text.
   eolAt(index: number): Style['eol']
   // Leaves the file as it was, reported skipped. Flags raised so far stay.
