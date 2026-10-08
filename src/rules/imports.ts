@@ -43,8 +43,8 @@ export function destination(ctx: FileContext, b: Binding): Destination | null {
     return { module: SDK_TRACE, name: entry.name, rule: 'sdk-trace-imports' }
   }
   if (b.module === CONTEXT_ASYNC_HOOKS && hasMoved(ctx, 'async-hooks-context-manager')) {
-    const table = T6[CONTEXT_ASYNC_HOOKS]!
-    const entry = Object.prototype.hasOwnProperty.call(table, b.imported) ? table[b.imported] : undefined
+    const table = T6[CONTEXT_ASYNC_HOOKS]
+    const entry = table && Object.prototype.hasOwnProperty.call(table, b.imported) ? table[b.imported] : undefined
     if (entry?.name) return { module: CONTEXT_ASYNC_HOOKS, name: entry.name, rule: 'async-hooks-context-manager' }
   }
   return null
@@ -88,7 +88,7 @@ function removal(text: string, node: SgNode): Edit {
   const before = text.slice(lineStart, start)
   const after = text.slice(end, lineEnd).replace(/\r$/, '')
   if (before.trim() === '' && after.trim() === '') return { start: lineStart, end: next, text: '' }
-  const trailing = /^[ \t]*/.exec(text.slice(end))![0].length
+  const trailing = /^[ \t]*/.exec(text.slice(end))?.[0].length ?? 0
   return { start, end: end + trailing, text: '' }
 }
 
@@ -132,12 +132,18 @@ function render(
     const elements = list.namedChildren().filter((c) => c.kind() !== 'comment')
     const start = (n: SgNode) => n.range().start.index
     const end = (n: SgNode) => n.range().end.index
+    const gone = (k: number) => {
+      const el = elements[k]
+      return el !== undefined && remove.has(el.id())
+    }
     for (let i = 0; i < elements.length; i++) {
-      if (!remove.has(elements[i]!.id())) continue
+      const first = elements[i]
+      if (!first || !gone(i)) continue
       let j = i
-      while (j + 1 < elements.length && remove.has(elements[j + 1]!.id())) j++
-      if (j + 1 < elements.length) at(start(elements[i]!), start(elements[j + 1]!), '')
-      else if (i > 0) at(end(elements[i - 1]!), end(elements[j]!), '')
+      while (gone(j + 1)) j++
+      const [prev, last, next] = [elements[i - 1], elements[j], elements[j + 1]]
+      if (next) at(start(first), start(next), '')
+      else if (prev && last) at(end(prev), end(last), '')
       else throw new Error('every element of a declaration removed in render')
       i = j
     }
@@ -145,14 +151,15 @@ function render(
       const text = replace.get(el.id())
       if (text !== undefined && !remove.has(el.id())) at(start(el), end(el), text)
     }
+    const last = elements.at(-1)
     if (append.length > 0) {
-      const last = elements.at(-1)!
+      if (!last) throw new Error('append to an empty import list')
       const after = last.next()
       const trailingComma = after?.kind() === ','
       if (isMultiLine(list)) {
         const text = ctx.text
         const lineStart = text.lastIndexOf('\n', start(last) - 1) + 1
-        const indent = /^[ \t]*/.exec(text.slice(lineStart))![0]
+        const indent = /^[ \t]*/.exec(text.slice(lineStart))?.[0] ?? ''
         const eol = ctx.eolAt(end(last))
         if (trailingComma) at(end(after), end(after), append.map((a) => `${eol}${indent}${a},`).join(''))
         else at(end(last), end(last), append.map((a) => `,${eol}${indent}${a}`).join(''))
@@ -302,12 +309,13 @@ export const imports: Rule = {
         }
         plan.elements.push({ binding: b, outcome, module, name, local })
       }
-      if (plan.bindings[0]!.form === 'side-effect' && isTraceSource(plan.bindings[0]!.module) && hasMoved(ctx, 'sdk-trace-imports')) {
+      const head = plan.bindings[0]
+      if (head?.form === 'side-effect' && isTraceSource(head.module) && hasMoved(ctx, 'sdk-trace-imports')) {
         plan.rule = 'sdk-trace-imports'
         plan.newModule = SDK_TRACE
       }
       if (plan.elements.some((e) => e.outcome === 'drop') && plan.rule === undefined) {
-        plan.rule = plan.elements[0]!.binding.module === CONTEXT_ASYNC_HOOKS ? 'async-hooks-context-manager' : undefined
+        plan.rule = plan.elements[0]?.binding.module === CONTEXT_ASYNC_HOOKS ? 'async-hooks-context-manager' : undefined
       }
       // Names that stay on the module the others move to are not split out.
       for (const e of plan.elements) {
@@ -354,8 +362,8 @@ export const imports: Rule = {
       const asType = a.kind === 'type' && ts && (usesImportType || form === 'cjs')
       const target = order.find((p) => {
         if (p.newModule !== a.module || p.elements.every((e) => e.outcome !== 'move')) return false
-        const b = p.bindings[0]!
-        if (b.scope !== null || !isProgramChild(p.declaration)) return false
+        const b = p.bindings[0]
+        if (!b || b.scope !== null || !isProgramChild(p.declaration)) return false
         if (asType) return b.form === 'esm-type'
         return b.form === 'esm-named' || (b.form === 'cjs-destructure' && a.kind === 'value')
       })
@@ -372,7 +380,8 @@ export const imports: Rule = {
     for (const plan of order) {
       if (!active(plan)) continue
       const { declaration } = plan
-      const first = plan.bindings[0]!
+      const first = plan.bindings[0]
+      if (!first) continue
       if (first.form === 'side-effect') {
         if (plan.newModule && plan.newModule !== first.module) {
           const str = moduleString(declaration, first.module)
@@ -438,7 +447,8 @@ export const imports: Rule = {
       const shape = listShape(ctx)
       const declarations: string[] = []
       for (const module of sorted([...fresh.keys()], (m) => m)) {
-        const group = fresh.get(module)!
+        const group = fresh.get(module)
+        if (!group) continue
         // Without import type in the file, type names ride along as type X specifiers.
         const values = sorted(group.value, (a) => a.name).map((a) => appendText(form, a.kind === 'type' && ts && form === 'esm', a.name, a.local))
         if (values.length > 0) declarations.push(newDeclaration(ctx, form, module, values, false, shape, eol))
