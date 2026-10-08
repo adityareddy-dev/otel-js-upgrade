@@ -31,4 +31,5 @@ jobs:
       # vitest needs Node 22 or later, the CLI itself runs on 20.
       - if: matrix.node != 20
         run: npm test
+      # Packs the tarball and runs it through npx on a copy of test/fixtures/_project, so the parser has to load here.
       - run: npm run smoke

@@ -1,0 +1,9 @@
+{
+  "name": "smoke-project",
+  "private": true,
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.208.0",
+    "@opentelemetry/sdk-trace-node": "^2.2.0"
+  }
+}
