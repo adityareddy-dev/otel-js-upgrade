@@ -12,6 +12,8 @@ import type { Binding, Edit, FileContext, Flag, ImportPlan, Member, Position, St
 // In 0.1.0 the api default import never hands out logs, which exists from api 1.10.0 only.
 const API_DEFAULT_REUSE = new Set<string>(API_DEFAULT_MEMBERS.filter((name) => name !== 'logs'))
 const NAMESPACE_FORMS = new Set(['namespace', 'import-equals', 'require-namespace'])
+// These run where they stand, unlike an import. A use above one reads it before it is set.
+const NOT_HOISTED = new Set(['cjs-destructure', 'require-namespace', 'import-equals'])
 const NOT_STATIC = new Set([
   'esm-type',
   'reexport-type',
@@ -113,16 +115,25 @@ export function createContext(input: ContextInput): Engine {
 
   const free = (name: string) => !taken.has(name)
 
-  const allocate = (module: string, name: string, kind: ImportKind): string => {
+  // A require is reused only when it ends before the use, at an offset into the current text.
+  const setBy = (b: Binding, at: number | undefined) =>
+    at === undefined ||
+    !NOT_HOISTED.has(b.form) ||
+    bindings.some((c) => c.form === b.form && c.module === b.module && c.local === b.local && c.declaration.range().end.index <= at)
+
+  const allocate = (module: string, name: string, kind: ImportKind, at?: number): string => {
     const key = `${module}\0${name}`
     const known = memo.get(key)
-    if (known !== undefined) {
+    const late =
+      known !== undefined &&
+      originalBindings.some((b) => b.module === module && b.scope === null && b.local === known.split('.')[0] && !setBy(b, at))
+    if (known !== undefined && !late) {
       const add = importPlan.add.find((a) => a.module === module && a.name === name)
       if (add && kind === 'value') add.kind = 'value'
       return known
     }
     const top = originalBindings.filter((b) => b.module === module && b.scope === null && b.local !== null)
-    const usable = (b: Binding) => declaredOnce(b.local!) && (kind === 'type' || b.kind === 'value')
+    const usable = (b: Binding) => declaredOnce(b.local!) && (kind === 'type' || b.kind === 'value') && setBy(b, at)
     const named = top.find(
       (b) => (b.form === 'esm-named' || b.form === 'esm-type' || b.form === 'cjs-destructure') && b.imported === name && usable(b),
     )
@@ -143,7 +154,7 @@ export function createContext(input: ContextInput): Engine {
       importPlan.add.push({ module, name, local: candidate, kind })
       local = candidate
     }
-    memo.set(key, local)
+    if (!late) memo.set(key, local)
     return local
   }
 

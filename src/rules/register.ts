@@ -133,10 +133,50 @@ function factory(ctx: FileContext, name: string): Platform | 'basic' | 'other' {
 
 type Receiver = { readonly provider: false } | { readonly provider: true; readonly platform: Platform | null; readonly problem: string | null }
 
+// A parameter named this, and the provider its type names, if any.
+function parameterOf(ctx: FileContext, name: string): { readonly platform: Platform | 'basic' | null; readonly typed: boolean } | null {
+  if (!ctx.declaredOnce(name)) return null
+  for (const id of ctx.tree.findAll({ rule: { kind: 'identifier', regex: `^${name.replace(/\$/g, '\\$')}$` } })) {
+    const p = id.parent()
+    const kind = String(p?.kind())
+    let param: SgNode | null = null
+    if (kind === 'formal_parameters') param = id
+    else if ((kind === 'required_parameter' || kind === 'optional_parameter') && same(p!.field('pattern'), id)) param = p
+    else if (kind === 'assignment_pattern' && same(p!.field('left'), id) && p!.parent()?.kind() === 'formal_parameters') param = id
+    else if (kind === 'arrow_function' && same(p!.field('parameter'), id)) param = id
+    if (!param) continue
+    const type = param.field('type')
+    if (!type) return { platform: null, typed: false }
+    for (const t of type.findAll({ rule: { kind: 'type_identifier' } })) {
+      const platform = providerOf(ctx.resolve(t.text()))
+      if (platform) return { platform, typed: true }
+    }
+    return { platform: null, typed: true }
+  }
+  return null
+}
+
+// A provider made somewhere inside a value, behind a cast, a condition or a default.
+function holdsProvider(ctx: FileContext, value: SgNode | null, depth = 0): boolean {
+  if (!value) return false
+  if (value.kind() === 'identifier' && depth < 3) {
+    const declarator = declaratorOf(ctx, value.text())
+    if (declarator && holdsProvider(ctx, declarator.field('value'), depth + 1)) return true
+  }
+  return value.findAll({ rule: { kind: 'new_expression' } }).some((n) => built(ctx, n) !== 'other')
+}
+
 // Whether a receiver name is a provider this file builds, and of which platform.
 function receiverOf(ctx: FileContext, name: string, at: SgNode): Receiver {
   const declarator = declaratorOf(ctx, name, at)
-  if (!declarator) return { provider: false }
+  if (!declarator) {
+    // A parameter can't be followed. One typed as a provider, or an untyped one in a file that makes providers, is flagged.
+    const param = parameterOf(ctx, name)
+    const makes = ctx.bindings.some((b) => providerOf(b) !== undefined)
+    if (!param || !(param.platform !== null || (!param.typed && makes))) return { provider: false }
+    const platform = param.platform === 'node' || param.platform === 'web' ? param.platform : null
+    return { provider: true, platform, problem: `${name} is a parameter, so this tool can't see which provider it gets and register() was not expanded. ${BY_HAND}` }
+  }
   const values: (SgNode | null)[] = []
   const init = declarator.field('value')
   if (init) values.push(init)
@@ -149,7 +189,10 @@ function receiverOf(ctx: FileContext, name: string, at: SgNode): Receiver {
     return built(ctx, v)
   })
   const providers = kinds.filter((k): k is Platform | 'basic' => k !== 'other')
-  if (providers.length === 0) return { provider: false }
+  if (providers.length === 0) {
+    if (!values.some((v) => holdsProvider(ctx, v))) return { provider: false }
+    return { provider: true, platform: null, problem: `${name} is given a provider through an expression this tool doesn't follow, so register() was not expanded. ${BY_HAND}` }
+  }
   const platforms = [...new Set(providers)]
   const platform = platforms.length === 1 && platforms[0] !== 'basic' ? (platforms[0] as Platform) : null
   if (kinds.includes('other')) {
@@ -291,7 +334,7 @@ function needsOf(platform: Platform, settings: Settings, setters: readonly Sette
   return needs
 }
 
-// A name already brought in by a dynamic destructure in the function the call sits in.
+// A name already brought in by a dynamic destructure in the function the call sits in, above the call.
 function boundNearby(ctx: FileContext, at: SgNode, module: string, name: string): string | null {
   const fn = nearestFunction(at)
   const modules = name === 'StackContextManager' ? [SDK_TRACE, SDK_TRACE_WEB] : [module]
@@ -302,6 +345,7 @@ function boundNearby(ctx: FileContext, at: SgNode, module: string, name: string)
       x.imported === name &&
       x.local !== null &&
       ctx.declaredOnce(x.local) &&
+      end(x.declaration) <= start(at) &&
       x.scope !== null &&
       fn !== null &&
       same(x.scope, fn),
@@ -315,11 +359,18 @@ function localFor(ctx: FileContext, at: SgNode, module: string, name: string): s
   if (name === 'StackContextManager') {
     // Rule I moves a static StackContextManager from sdk-trace-web to sdk-trace under the same local.
     const web = ctx.bindings.find(
-      (b) => b.module === SDK_TRACE_WEB && b.imported === name && b.scope === null && b.local !== null && b.kind === 'value' && ctx.declaredOnce(b.local),
+      (b) =>
+        b.module === SDK_TRACE_WEB &&
+        b.imported === name &&
+        b.scope === null &&
+        b.local !== null &&
+        b.kind === 'value' &&
+        ctx.declaredOnce(b.local) &&
+        (b.form !== 'cjs-destructure' || end(b.declaration) <= start(at)),
     )
     if (web?.local) return web.local
   }
-  return ctx.allocate(module, name, 'value')
+  return ctx.allocate(module, name, 'value', start(at))
 }
 
 // Lines after the first move by the statement's indent minus the indent of the line the value starts on.
@@ -406,6 +457,13 @@ function statementOf(call: SgNode): SgNode | null {
 
 const looksLikeProvider = (receiver: SgNode) => /provider/i.test(receiver.text())
 
+// Called the way a provider's register() is: no argument, or one object literal. A plugin call passes a plugin.
+function providerShaped(call: SgNode): boolean {
+  const args = call.field('arguments')
+  const given = args ? code(args) : []
+  return given.length === 0 || (given.length === 1 && given[0]!.kind() === 'object')
+}
+
 function heuristicFlag(ctx: FileContext, call: SgNode, receiver: SgNode) {
   const text = short(receiver)
   // A name declared here was built from a form this version doesn't follow, or is bound more than once.
@@ -458,6 +516,16 @@ function run(ctx: FileContext): Edit[] {
     flagged = true
   }
   const expansions: Expansion[] = []
+  const makes = ctx.bindings.some((b) => providerOf(b) !== undefined)
+  // provider['register']() is never expanded, but a provider renamed under it would lose the method.
+  for (const sub of ctx.tree.findAll({ rule: { kind: 'subscript_expression' } })) {
+    const index = sub.field('index')
+    const object = sub.field('object')
+    if (!object || index?.kind() !== 'string' || index.text().slice(1, -1) !== 'register') continue
+    const r = object.kind() === 'identifier' ? receiverOf(ctx, object.text(), object) : ({ provider: false } as const)
+    if (!r.provider && !looksLikeProvider(object)) continue
+    fail(sub, r.provider ? r.platform : null, `register() is reached through ${short(object)}['register'], which this tool doesn't expand. ${BY_HAND}`)
+  }
   for (const m of ctx.tree.findAll({ rule: { kind: 'member_expression' } })) {
     if (!isRegister(m)) continue
     const receiver = m.field('object')
@@ -469,16 +537,23 @@ function run(ctx: FileContext): Edit[] {
     }
     if (receiver.kind() === 'member_expression') {
       const held = heldBy(ctx, receiver)
-      if (call && (held !== 'other' || looksLikeProvider(receiver))) {
+      if (call && (held !== 'other' || looksLikeProvider(receiver) || (makes && providerShaped(call)))) {
         const text = short(receiver)
         const platform = held === 'node' || held === 'web' ? held : null
         fail(call, platform, `register() is called through ${text}, and this tool doesn't follow members, so it was not expanded. ${BY_HAND}`)
       }
       continue
     }
+    const maker = receiver.kind() === 'call_expression' ? receiver.field('function') : null
+    const made = maker?.kind() === 'identifier' ? factory(ctx, maker.text()) : 'other'
+    if (made !== 'other') {
+      fail(call ?? m, made === 'basic' ? null : made, `register() is called on a provider that is never stored, so it was not expanded. Keep the provider in a const and run the codemod again, or ${BY_HAND.charAt(0).toLowerCase()}${BY_HAND.slice(1)}`)
+      continue
+    }
     const r = receiver.kind() === 'identifier' ? receiverOf(ctx, receiver.text(), receiver) : ({ provider: false } as const)
     if (!r.provider) {
-      if (call && looksLikeProvider(receiver)) {
+      // In a file that makes providers, a register() shaped like a provider's may be one this tool can't follow.
+      if (call && (looksLikeProvider(receiver) || (makes && providerShaped(call) && receiver.kind() !== 'super' && receiver.kind() !== 'this'))) {
         heuristicFlag(ctx, call, receiver)
         flagged = true
       }

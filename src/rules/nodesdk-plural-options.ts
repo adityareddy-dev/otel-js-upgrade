@@ -186,6 +186,10 @@ function rewriteValue(ctx: FileContext, p: Property, plural: Plural): Edit | nul
     const nullishFirst = isNullish(consequence)
     if (nullishFirst === isNullish(alternative)) return null
     const branch = nullishFirst ? alternative : consequence
+    // Only a branch that is never undefined goes in brackets, [undefined] would crash where 2.x fell back.
+    const inner = unwrap(branch)
+    const init = isName(inner) ? constInit(ctx, inner.text()) : null
+    if (inner.kind() !== 'new_expression' && inner.kind() !== 'object' && init?.kind() !== 'new_expression') return null
     const base = raw.range().start.index
     const from = branch.range().start.index - base
     const to = branch.range().end.index - base
