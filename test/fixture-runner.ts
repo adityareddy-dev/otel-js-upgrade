@@ -34,7 +34,7 @@ const dirs = (dir: string) =>
     .map((d) => d.name)
     .sort()
 
-// test/fixtures/<rule-id>/<case>/ and test/fixtures/flags/<flag-id>/<case>/. Folders starting with _ are skipped.
+// test/fixtures/<rule-id>/<case>/ and test/fixtures/flags/<flag-id>/<case>/. Folders starting with _ and project cases are skipped.
 export function fixtureCases(root: string): FixtureCase[] {
   if (!existsSync(root)) return []
   const out: FixtureCase[] = []
@@ -42,7 +42,11 @@ export function fixtureCases(root: string): FixtureCase[] {
     const groups = top === 'flags' ? dirs(join(root, top)).map((id) => `flags/${id}`) : [top]
     for (const group of groups) {
       const rule = EVERY_PASS.has(group) || group.startsWith('flags/') ? null : group
-      for (const name of dirs(join(root, group))) out.push({ name: `${group}/${name}`, dir: join(root, group, name), group, rule })
+      for (const name of dirs(join(root, group))) {
+        // A project case (input/ and expected/ trees) has its own runner.
+        if (existsSync(join(root, group, name, 'input'))) continue
+        out.push({ name: `${group}/${name}`, dir: join(root, group, name), group, rule })
+      }
     }
   }
   return out
