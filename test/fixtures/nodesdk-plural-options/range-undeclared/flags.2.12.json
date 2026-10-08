@@ -4,7 +4,7 @@
     "severity": "note",
     "line": 7,
     "column": 3,
-    "message": "metricReaders needs @opentelemetry/sdk-node 0.204.0 or later, so metricReader was left as it is. Raise sdk-node, then run again.",
+    "message": "metricReaders needs @opentelemetry/sdk-node 0.204.0 or later, and this package's package.json doesn't list sdk-node, so metricReader was left as it is. Once sdk-node 0.204.0 or later is listed and installed, run again.",
     "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationmetricreader"
   }
 ]

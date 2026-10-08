@@ -214,7 +214,9 @@ function rewriteObject(ctx: FileContext, object: SgNode, metricReaders: boolean,
       ctx.flag(
         'manual-review',
         p.node,
-        `metricReaders needs @opentelemetry/sdk-node ${METRIC_READERS_FROM} or later, so metricReader was left as it is. Raise sdk-node, then run again.`,
+        ctx.packageRanges[SDK_NODE] === undefined
+          ? `metricReaders needs @opentelemetry/sdk-node ${METRIC_READERS_FROM} or later, and this package's package.json doesn't list sdk-node, so metricReader was left as it is. Once sdk-node ${METRIC_READERS_FROM} or later is listed and installed, run again.`
+          : `metricReaders needs @opentelemetry/sdk-node ${METRIC_READERS_FROM} or later, so metricReader was left as it is. Raise sdk-node, then run again.`,
         { severity: 'note', link },
       )
       continue
