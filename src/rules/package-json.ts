@@ -145,6 +145,14 @@ const properties = (node: Node | undefined): Node[] => (node?.type === 'object' 
 // The value node under a key of an object node.
 const valueAt = (node: Node | undefined, key: string): Node | undefined => child(node, key)?.children?.[1]
 
+// Every string value under a node, through nested condition objects and arrays.
+function stringsIn(node: Node | undefined): Node[] {
+  if (node === undefined) return []
+  if (node.type === 'string') return [node]
+  if (node.type === 'property') return stringsIn(node.children?.[1])
+  return (node.children ?? []).flatMap(stringsIn)
+}
+
 // npm's @opentelemetry/core@2, yarn's **/@opentelemetry/core, pnpm's @opentelemetry/core@<2 all name core.
 function overrideName(key: string): { name: string | null; parent: boolean } {
   const at = key.lastIndexOf(OTEL)
@@ -333,6 +341,14 @@ function passSync(input: PackageInput): PackageResult {
     if (!kept) continue
     const pin = t3 ? ' Keeping it pins @opentelemetry/api below 1.10.0, which 3.0\'s instrumentation and sdk-node need.' : ''
     info.push(flag(kept.flag, e.offset, `${e.name} has no 3.0 release. Remove it once no code uses it.${pin}`, kept.link ? { link: kept.link } : {}))
+  }
+  // Subpath imports ("#otel": "@opentelemetry/sdk-trace-base") that name a removed package break like a deep import.
+  for (const leaf of stringsIn(valueAt(facts.root, 'imports'))) {
+    const value = String(leaf.value)
+    const pkg = REMOVED.find((name) => value === name || value.startsWith(`${name}/`))
+    if (pkg === undefined) continue
+    const to = (TRACE_SOURCES as readonly string[]).includes(pkg) ? ` Point it at ${SDK_TRACE}.` : ''
+    info.push(flag('deep-import', leaf.offset, `${value} in imports names ${pkg}, which 3.0 removed.${to}`))
   }
   const contrib = facts.entries.filter((e) => isContrib(e.name))
   const first = contrib[0]

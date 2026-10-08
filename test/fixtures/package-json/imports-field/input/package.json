@@ -1,0 +1,14 @@
+{
+  "name": "app",
+  "imports": {
+    "#trace": "@opentelemetry/sdk-trace-base",
+    "#web": {
+      "browser": "@opentelemetry/sdk-trace-web/build/esm/index.js",
+      "default": "./web.js"
+    },
+    "#api": "@opentelemetry/api"
+  },
+  "dependencies": {
+    "@opentelemetry/sdk-trace": "^2.12.0"
+  }
+}
