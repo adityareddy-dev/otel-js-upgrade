@@ -58,6 +58,32 @@ export const REMOVED: readonly string[] = scope([
 
 export const UNTOUCHED: readonly string[] = scope(['api', 'semantic-conventions'])
 
+// The @opentelemetry/* packages each removed package depends on, npm view of 2.12.0 and 0.223.0 on 2026-10-08.
+const INSTALLS: Readonly<Record<string, readonly string[]>> = {
+  '@opentelemetry/sdk-trace-base': scope(['core', 'resources', 'sdk-trace', 'semantic-conventions']),
+  '@opentelemetry/sdk-trace-node': scope(['core', 'sdk-trace-base', 'context-async-hooks']),
+  '@opentelemetry/sdk-trace-web': scope(['core', 'sdk-trace-base']),
+  '@opentelemetry/api-logs': [],
+  '@opentelemetry/propagator-jaeger': scope(['core']),
+  '@opentelemetry/exporter-jaeger': scope(['core', 'sdk-trace', 'semantic-conventions']),
+  '@opentelemetry/shim-opentracing': scope(['core', 'semantic-conventions']),
+  '@opentelemetry/shim-opencensus': scope(['core', 'resources', 'sdk-metrics']),
+}
+
+// What a removed package brings into node_modules through its dependencies, plus the api, which every one of them needs.
+export function installedBy(removed: string): Set<string> {
+  const out = new Set<string>(['@opentelemetry/api'])
+  const walk = (name: string) => {
+    for (const dep of INSTALLS[name] ?? []) {
+      if (out.has(dep)) continue
+      out.add(dep)
+      walk(dep)
+    }
+  }
+  walk(removed)
+  return out
+}
+
 // Anything else under @opentelemetry/ is a contrib package with its own release cycle.
 export function isContrib(name: string): boolean {
   return (
