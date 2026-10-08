@@ -4,6 +4,7 @@ import { guide } from '../data/links.js'
 import { API, CONTEXT_ASYNC_HOOKS, CORE, SDK_TRACE, SDK_TRACE_WEB, TRACE_SOURCES } from '../data/names.js'
 import { TARGETS } from '../data/rules.js'
 import { kindRule } from '../engine/parse.js'
+import { continues } from '../engine/style.js'
 import type { Binding, Edit, FileContext, Rule } from '../engine/types.js'
 
 type Platform = 'node' | 'web'
@@ -347,7 +348,9 @@ function expand(ctx: FileContext, x: Expansion, names: ReadonlyMap<string, strin
       `${ind})${semi}`,
     ].join(br)
   })
-  const body = lines.join(br + ind)
+  // Without semicolons in the file the last setter still needs one when the next line starts with ( or [.
+  const tail = !braces && semi === '' && continues(ctx.text, end(x.statement)) ? ';' : ''
+  const body = lines.join(br + ind) + tail
   return { start: s, end: end(x.statement), text: braces ? `{${br}${ind}${body}${br}${lineInd}}` : body }
 }
 

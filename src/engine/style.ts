@@ -98,3 +98,27 @@ export function detectStyle(text: string, root: SgNode): Style {
     bom: text.startsWith('\uFEFF'),
   }
 }
+
+// Whether the code after index would run on into a statement that ends there without a semicolon.
+export function continues(text: string, index: number, onNewLine = false): boolean {
+  let newLine = onNewLine
+  let i = index
+  while (i < text.length) {
+    if (text[i] === '\n') newLine = true
+    if (/\s/.test(text[i]!)) {
+      i++
+    } else if (text.startsWith('//', i)) {
+      const next = text.indexOf('\n', i)
+      if (next === -1) return false
+      i = next
+    } else if (text.startsWith('/*', i)) {
+      const close = text.indexOf('*/', i + 2)
+      if (close === -1) return false
+      if (text.slice(i, close).includes('\n')) newLine = true
+      i = close + 2
+    } else {
+      return newLine ? '([`+-/*%,.=?<>&|^'.includes(text[i]!) : text[i] !== '}'
+    }
+  }
+  return false
+}
