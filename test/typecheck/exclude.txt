@@ -1,0 +1,12 @@
+# Cases whose expected output can't compile on purpose, "<case> - <reason>" per line.
+flags/deep-import/specifiers - imports @opentelemetry/api/package.json, the deep import the flag is about
+flags/general-limits/new-provider - generalLimits isn't in TracerProviderOptions, the code the flag asks to change
+flags/sdk-1x/add-span-processor-built - 1.x code, addSpanProcessor, the file is skipped
+flags/sdk-1x/negative - typeof checks on addSpanProcessor, a method 2.x doesn't type
+flags/sdk-1x/new-resource - 1.x code, new Resource(), the file is skipped
+register/flag-basic-provider - register() on a BasicTracerProvider, 1.x code the flag reports
+register/flag-unknown-key - an unknown key in register(), the case for the flag
+flags/force-flush-timeout/new-provider@3 - forceFlushTimeoutMillis is gone in 3.0, the todo asks to move it
+flags/force-flush-timeout/typed-literals@3 - forceFlushTimeoutMillis is gone in 3.0, the todo asks to move it
+nodesdk-plural-options/both-conditional-plural@3 - singular and plural both set, left with manual-review
+nodesdk-plural-options/call-and-await@3 - singular values from calls, left with manual-review

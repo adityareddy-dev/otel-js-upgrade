@@ -33,3 +33,18 @@ jobs:
         run: npm test
       # Packs the tarball and runs it through npx on a copy of test/fixtures/_project, so the parser has to load here.
       - run: npm run smoke
+
+  # Every .ts expected output compiles: target 2.12 against the 2.12.0 packages and api 1.9.1, target 3 against the
+  # 3.0 canaries and api 1.10.0-development.1. Cases that prove a flag on code that can't compile are in
+  # test/typecheck/exclude.txt with their reason.
+  typecheck-expected:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: node scripts/typecheck-expected.mjs
