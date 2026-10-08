@@ -10,6 +10,7 @@ flags/force-flush-timeout/new-provider@3 - forceFlushTimeoutMillis is gone in 3.
 flags/force-flush-timeout/typed-literals@3 - forceFlushTimeoutMillis is gone in 3.0, the todo asks to move it
 nodesdk-plural-options/both-conditional-plural@3 - singular and plural both set, left with manual-review
 nodesdk-plural-options/call-and-await@3 - singular values from calls, left with manual-review
+nodesdk-plural-options/conditional-name@3 - spanProcessor wraps a value that can be undefined, left with manual-review
 engine/parse-bsp - the parse check case, its output is the input that doesn't parse
 engine/parse-comma-call - the parse check case, its output is the input that doesn't parse
 engine/parse-comma-object - the parse check case, its output is the input that doesn't parse
