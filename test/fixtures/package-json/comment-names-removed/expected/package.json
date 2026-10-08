@@ -1,0 +1,8 @@
+{
+  "name": "fx",
+  "version": "1.0.0",
+  "dependencies": {
+    "@opentelemetry/api": "^1.10.0",
+    "@opentelemetry/sdk-trace": "^3.0.0"
+  }
+}

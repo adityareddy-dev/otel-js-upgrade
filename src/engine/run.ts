@@ -1,3 +1,5 @@
+import type { SgNode } from '@ast-grep/napi'
+
 import { API_LOGS, CONTEXT_ASYNC_HOOKS, CORE, SDK_LOGS, SDK_NODE, SDK_TRACE_WEB, T2, T4, T5, T6, TRACE_SOURCES } from '../data/names.js'
 import { RULE_IDS, type RuleId, type Target } from '../data/rules.js'
 import { REMOVED } from '../data/versions.js'
@@ -25,11 +27,29 @@ const MODULE_TEXT = /['"`](@opentelemetry\/[\w./-]+)['"`]/g
 const packageOf = (module: string) => module.split('/').slice(0, 2).join('/')
 const packages = (modules: Iterable<string>) => [...new Set([...modules].map(packageOf))].sort()
 
-// A quoted removed package anywhere in the text, comments included, keeps it live (2.2). Other names in strings add nothing.
+// A file that never got a clean parse: a quoted removed package anywhere in its text keeps it live (2.2).
 const modulesInText = (text: string) => packages([...text.matchAll(MODULE_TEXT)].map((m) => m[1] ?? '')).filter((p) => REMOVED.includes(p))
 
-const modulesIn = (bindings: readonly Binding[], text: string) =>
-  packages([...bindings.filter((b) => b.form !== 'non-literal').map((b) => b.module), ...modulesInText(text)])
+const JSDOC_IMPORT = /import\(\s*['"](@opentelemetry\/[\w./-]+)['"]\s*\)/g
+const REFERENCE_TYPES = /^\/\/\/\s*<reference\s+types\s*=\s*['"](@opentelemetry\/[\w./-]+)['"]/
+
+// A parsed file: only a string, a JSDoc import() or a /// <reference types> keeps a removed package live, not a plain comment (2.2).
+function modulesInTree(root: SgNode): string[] {
+  const named: string[] = []
+  for (const s of root.findAll({ rule: { any: [{ kind: 'string' }, { kind: 'template_string' }], regex: OTEL } })) {
+    named.push(...[...s.text().matchAll(MODULE_TEXT)].map((m) => m[1] ?? ''))
+  }
+  for (const c of root.findAll({ rule: { kind: 'comment', regex: OTEL } })) {
+    const text = c.text()
+    if (text.startsWith('/**')) named.push(...[...text.matchAll(JSDOC_IMPORT)].map((m) => m[1] ?? ''))
+    const reference = REFERENCE_TYPES.exec(text)?.[1]
+    if (reference !== undefined) named.push(reference)
+  }
+  return packages(named).filter((p) => REMOVED.includes(p))
+}
+
+const modulesIn = (bindings: readonly Binding[], named: readonly string[]) =>
+  packages([...bindings.filter((b) => b.form !== 'non-literal').map((b) => b.module), ...named])
 
 const byPosition = (a: Flag, b: Flag) => a.line - b.line || a.column - b.column || a.rule.localeCompare(b.rule)
 
@@ -136,7 +156,7 @@ export function runFile(input: RunInput): FileResult {
       return done({ ...unchanged, status: 'error', reason: `rule ${rule.id} threw: ${message}, file not touched`, modules: modulesInText(text) })
     }
     if (ctx.skipped !== null) {
-      return done({ ...unchanged, status: 'skipped', reason: ctx.skipped, flags: finish(), modules: modulesIn(ctx.original.bindings, text) })
+      return done({ ...unchanged, status: 'skipped', reason: ctx.skipped, flags: finish(), modules: modulesIn(ctx.original.bindings, modulesInText(text)) })
     }
     if (edits.length === 0) continue
     if (brokenAt(ctx.tree)) {
@@ -144,7 +164,7 @@ export function runFile(input: RunInput): FileResult {
         ...unchanged,
         status: 'error',
         reason: `internal: rewritten file did not parse after ${rule.id}, not written`,
-        modules: modulesIn(ctx.original.bindings, text),
+        modules: modulesIn(ctx.original.bindings, modulesInText(text)),
       })
     }
     for (const edit of edits) {
@@ -160,7 +180,7 @@ export function runFile(input: RunInput): FileResult {
     flags: finish(),
     rules: RULE_IDS.filter((id) => touched.has(id)),
     edits: changed ? ctx.edits : 0,
-    modules: modulesIn(ctx.bindings, ctx.text),
+    modules: modulesIn(ctx.bindings, modulesInTree(ctx.tree)),
   })
 }
 
