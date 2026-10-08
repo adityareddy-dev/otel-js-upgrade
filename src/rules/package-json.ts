@@ -398,8 +398,9 @@ function passSync(input: PackageInput): PackageResult {
       blockTrace = true
       const file = odd.range.startsWith('catalog:') ? 'pnpm-workspace.yaml' : 'package.json'
       const names = oldTrace.map((e) => e.name).join(', ')
+      const [stay, them] = oldTrace.length === 1 ? ['stays', 'it'] : ['stay', 'them']
       planned.push(
-        flag('package-json-skipped', odd.offset, `${odd.name} ${odd.range} isn't a plain version, so ${names} stay. Replace them with ${SDK_TRACE} ${traceVersion} in ${file} by hand.`),
+        flag('package-json-skipped', odd.offset, `${odd.name} ${odd.range} isn't a plain version, so ${names} ${stay}. Replace ${them} with ${SDK_TRACE} ${traceVersion} in ${file} by hand.`),
       )
     } else {
       const strongest = [...oldTrace].sort((a, b) => rank(a.section) - rank(b.section) || a.offset - b.offset)[0]
