@@ -1,0 +1,7 @@
+{
+  "name": "checkout",
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "express": "^4.21.2"
+  }
+}

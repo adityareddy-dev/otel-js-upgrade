@@ -14,7 +14,7 @@ import { decode } from './engine/read.js'
 import { runFile } from './engine/run.js'
 import type { Binding, FileResult, FileStatus, Flag, Position, Rule } from './engine/types.js'
 import { RULES } from './rules/index.js'
-import { liveByPackage, outsideEvery, packagePass, readPackage, type PackageFacts } from './rules/package-json.js'
+import { installedNowhere, liveByPackage, outsideEvery, packagePass, readPackage, type PackageFacts } from './rules/package-json.js'
 import { textFlags } from './scan/text.js'
 
 export type { FlagId, RuleId, Severity, Target } from './data/rules.js'
@@ -370,7 +370,7 @@ export async function run(options: RunOptions): Promise<RunResult> {
     entries.push(entry)
   }
 
-  const loads: { path: string; shown: string; modules: readonly string[] }[] = []
+  const loads: { path: string; shown: string; modules: readonly string[]; before?: readonly string[] }[] = []
   for (const f of found.unparsed) {
     const text = new TextDecoder().decode(readFileSync(f.abs))
     const owner = stateOf(manifests.ownerOf(f.abs))
@@ -394,10 +394,15 @@ export async function run(options: RunOptions): Promise<RunResult> {
 
   const states = [...packages.values()]
   // A module is live in the nearest package that lists it, else in the file's own (hoisting). Absolute paths on both sides.
-  for (const e of entries) loads.push({ path: e.found.abs, shown: e.found.path, modules: e.result.modules })
+  for (const e of entries) {
+    // A module counts as new only when the run rewrote the file.
+    const before = e.original !== null && e.result.text !== e.original ? { before: namedPackages(e.original) } : {}
+    loads.push({ path: e.found.abs, shown: e.found.path, modules: e.result.modules, ...before })
+  }
   const manifestTexts = states.map((s) => ({ path: s.manifest.abs, text: s.manifest.text ?? '' }))
   const live = liveByPackage(manifestTexts, loads)
-  const outside = outsideEvery(manifestTexts, loads).map((f) => ({ path: f.shown, modules: f.modules }))
+  const outside = outsideEvery(manifestTexts, loads).map((f) => ({ path: f.shown, modules: f.modules, ...(f.before ? { before: f.before } : {}) }))
+  flags.push(...installedNowhere(manifestTexts, outside))
   const outcomes = new Map<string, PackageOutcome>()
   for (const s of states) {
     const result = await packagePass({

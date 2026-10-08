@@ -1,0 +1,7 @@
+{
+  "name": "billing",
+  "dependencies": {
+    "@opentelemetry/sdk-trace-node": "^2.0.0",
+    "express": "^4.21.2"
+  }
+}
