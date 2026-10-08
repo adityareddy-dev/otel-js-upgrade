@@ -6,7 +6,7 @@ import { createTwoFilesPatch } from 'diff'
 import { FLAG_LINKS } from './data/links.js'
 import { CONTEXT_ASYNC_HOOKS, SDK_TRACE, T6, TRACE_SOURCES } from './data/names.js'
 import { LATER_RULE_IDS, RULE_IDS, RULE_UNITS, TARGETS, type FlagId, type RuleId, type Severity, type Target } from './data/rules.js'
-import { REMOVED } from './data/versions.js'
+import { released, REMOVED } from './data/versions.js'
 import { discover, displayPath, gitStatus, isCode, Manifests, pathProblem, within, type Found, type Manifest } from './discover.js'
 import { bindingsOf } from './engine/bindings.js'
 import { parseFile } from './engine/parse.js'
@@ -14,7 +14,7 @@ import { decode } from './engine/read.js'
 import { runFile } from './engine/run.js'
 import type { Binding, FileResult, FileStatus, Flag, Position, Rule } from './engine/types.js'
 import { RULES } from './rules/index.js'
-import { packagePass } from './rules/package-json.js'
+import { liveByPackage, packagePass, readPackage, type PackageFacts } from './rules/package-json.js'
 import { textFlags } from './scan/text.js'
 
 export type { FlagId, RuleId, Severity, Target } from './data/rules.js'
@@ -118,29 +118,7 @@ export interface RunResult {
   readonly usage?: boolean
 }
 
-// The call shape of the package.json pass (2.6), which runs after every source file.
-export interface PackageInput {
-  // Relative to cwd, forward slashes, as reports print it.
-  readonly path: string
-  readonly abs: string
-  // null when the file isn't UTF-8.
-  readonly text: string | null
-  // A scanned path sits inside the package, so the file is read but not edited.
-  readonly partial: boolean
-  // The code files it owns, after the run. A skipped or failed file keeps its modules live.
-  readonly files: readonly FileResult[]
-  // Packages named by files it owns that never got a clean parse (.vue, over 1 MB, not UTF-8).
-  readonly liveModules: readonly string[]
-}
-
-export interface PackagePassInput {
-  readonly target: Target
-  // Every package that owns a scanned file or was found in a scanned folder. Markers are left out.
-  readonly packages: readonly PackageInput[]
-  // false under --skip package-json and --no-package-json: read for the gates and the undeclared-module todo only.
-  readonly edit: boolean
-}
-
+// One package.json after the package pass (2.6), as the reports show it.
 export interface PackageOutcome {
   readonly path: string
   readonly status: 'changed' | 'unchanged' | 'skipped'
@@ -151,16 +129,15 @@ export interface PackageOutcome {
   readonly added: Readonly<Record<string, string>>
   readonly bumped: Readonly<Record<string, readonly [string, string]>>
   readonly reason?: string
-  // Set when the 1.x gate or a peer on the 2.x SDK refuses the package. None of its code is rewritten.
-  readonly refused?: string
-}
-
-export interface PackageResult {
-  readonly packages: readonly PackageOutcome[]
-  readonly flags: readonly Flag[]
 }
 
 const MB = 1024 * 1024
+// The engine's prefilter: a file without these is never parsed, so a refused package has nothing to skip in it.
+const PREFILTER = ['@opentelemetry/', '.register(', '.addSpanProcessor(']
+const REFUSED = {
+  'sdk-1x': 'the package is on OpenTelemetry JS 1.x, see the todo on its package.json',
+  peer: 'the package peers on the 2.x SDK, see the todo on its package.json',
+} as const
 const T1_UNIT: readonly RuleId[] = ['span-processor-options', 'register', 'sdk-trace-imports']
 const ASYNC_HOOKS_NAMES = Object.keys(T6[CONTEXT_ASYNC_HOOKS] ?? {})
 // Classes that stop reading OTEL_* variables once they come from sdk-trace.
@@ -294,8 +271,9 @@ const byPosition = (a: Flag, b: Flag) =>
 
 interface PackageState {
   readonly manifest: Manifest
+  // The gates and declared ranges, read before any file of the package runs.
+  readonly facts: PackageFacts
   readonly partial: boolean
-  readonly files: FileResult[]
   readonly live: Set<string>
 }
 
@@ -348,7 +326,8 @@ export async function run(options: RunOptions): Promise<RunResult> {
     if (!m) return null
     let s = packages.get(m.abs)
     if (!s) {
-      s = { manifest: m, partial: !found.dirs.some((d) => within(d, m.dir)), files: [], live: new Set() }
+      const facts = readPackage(m.path, m.text ?? '')
+      s = { manifest: m, facts, partial: !found.dirs.some((d) => within(d, m.dir)), live: new Set() }
       packages.set(m.abs, s)
     }
     return s
@@ -373,17 +352,24 @@ export async function run(options: RunOptions): Promise<RunResult> {
     const text = bytes === null ? null : decode(bytes)
     if (bytes === null) entry = neverParsed(new TextDecoder().decode(readFileSync(f.abs)), 'over 1 MB')
     else if (text === null) entry = neverParsed(new TextDecoder().decode(bytes), 'not UTF-8')
-    else {
-      const ranges = owner ? { packageRanges: owner.manifest.ranges } : {}
+    else if (owner?.facts.refused && PREFILTER.some((s) => text.includes(s))) {
+      // The gates run before the files: a refused package's code stays as it is, its todo sits on the package.json.
+      const reason = REFUSED[owner.facts.refused]
+      const result = { path: f.path, status: 'skipped', text, flags: [], rules: [], edits: 0, reason, modules: namedPackages(text) } as const
+      entry = { found: f, owner, result, original: text }
+    } else {
+      const ranges = owner ? { packageRanges: owner.facts.ranges } : {}
       entry = { found: f, owner, result: runFile({ path: f.path, text, target, rules: passes, ...ranges }), original: text }
     }
     entries.push(entry)
   }
 
+  const loads: { path: string; modules: readonly string[] }[] = []
   for (const f of found.unparsed) {
     const text = new TextDecoder().decode(readFileSync(f.abs))
     const owner = stateOf(manifests.ownerOf(f.abs))
     for (const name of namedPackages(text)) owner?.live.add(name)
+    loads.push({ path: f.abs, modules: namedPackages(text) })
     const hit = firstRemoved(text)
     const ext = f.path.slice(f.path.lastIndexOf('.'))
     if (hit) flags.push(flag('not-parsed', f.path, hit.at, `${ext} files aren't parsed, and this one names ${hit.name}, which 3.0 removed. Move its imports by hand.`))
@@ -401,33 +387,41 @@ export async function run(options: RunOptions): Promise<RunResult> {
   }
 
   const states = [...packages.values()]
-  for (const e of entries) e.owner?.files.push(e.result)
-  const pass = await packagePass({
-    target,
-    edit: selected.has('package-json'),
-    packages: states.map((s) => ({
+  // A module is live in the nearest package that lists it, else in the file's own (hoisting). Absolute paths on both sides.
+  for (const e of entries) loads.push({ path: e.found.abs, modules: e.result.modules })
+  const live = liveByPackage(
+    states.map((s) => ({ path: s.manifest.abs, text: s.manifest.text ?? '' })),
+    loads,
+  )
+  const outcomes = new Map<string, PackageOutcome>()
+  for (const s of states) {
+    const result = await packagePass({
       path: s.manifest.path,
-      abs: s.manifest.abs,
-      text: s.manifest.text,
+      text: s.manifest.text ?? '',
+      target,
+      released,
+      live: live.get(s.manifest.abs) ?? new Set(),
       partial: s.partial,
-      files: s.files,
-      liveModules: [...s.live].sort(),
-    })),
-  })
-
-  // A refused package keeps every file it owns as it was. Files with nothing OpenTelemetry in them were never parsed anyway.
-  const refused = new Map(pass.packages.flatMap((p) => (p.refused === undefined ? [] : [[p.path, p.refused] as const])))
-  for (const e of entries) {
-    const reason = e.owner ? refused.get(e.owner.manifest.path) : undefined
-    const r = e.result
-    if (reason === undefined || (r.status === 'unchanged' && r.flags.length === 0 && r.modules.length === 0)) continue
-    e.result = { ...r, status: 'skipped', text: e.original ?? '', flags: [], rules: [], edits: 0, reason }
+      skipEdits: !selected.has('package-json'),
+    })
+    flags.push(...result.flags)
+    const reason = s.facts.refused ? REFUSED[s.facts.refused] : s.facts.parsed ? undefined : "package.json doesn't parse"
+    outcomes.set(s.manifest.path, {
+      path: s.manifest.path,
+      status: reason !== undefined ? 'skipped' : result.changed ? 'changed' : 'unchanged',
+      text: result.text,
+      edits: result.edits,
+      removed: result.removed,
+      added: result.added,
+      bumped: result.bumped,
+      ...(reason === undefined ? {} : { reason }),
+    })
   }
 
   // env-vars-not-read only counts once a package uses sdk-trace's classes after the run. Hits are repo-wide.
   const gated = states.filter(
     (s) =>
-      !refused.has(s.manifest.path) &&
+      s.facts.refused === null &&
       entries.some(
         (e) =>
           e.owner === s &&
@@ -461,13 +455,11 @@ export async function run(options: RunOptions): Promise<RunResult> {
     }
   }
   for (const e of entries) flags.push(...e.result.flags)
-  flags.push(...pass.flags)
 
   const unique = new Map<string, Flag>()
   for (const f of flags) unique.set(`${f.rule}\0${f.path}\0${f.line}\0${f.column}\0${f.message}`, f)
   const allFlags = [...unique.values()].sort(byPosition)
 
-  const outcomes = new Map(pass.packages.map((p) => [p.path, p]))
   if (mode === 'write') {
     for (const e of entries) {
       if (e.result.status !== 'changed') continue
@@ -519,7 +511,7 @@ export async function run(options: RunOptions): Promise<RunResult> {
     })
   }
 
-  const changedPackages = pass.packages.filter((p) => p.status === 'changed')
+  const changedPackages = [...outcomes.values()].filter((p) => p.status === 'changed')
   const summary: Summary = {
     filesScanned: found.code.length + found.skipped.filter((s) => isCode(s.abs)).length,
     packages: states.length,

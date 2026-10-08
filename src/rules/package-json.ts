@@ -37,6 +37,11 @@ export interface PackageResult {
   readonly flags: readonly Flag[]
   // Why no source file of this package may be rewritten, null when they may. The CLI asks readPackage before the files run.
   readonly refused: 'sdk-1x' | 'peer' | null
+  // Dependency lines this run removes, adds and bumps. edits is their count, what the reports print.
+  readonly removed: readonly string[]
+  readonly added: Readonly<Record<string, string>>
+  readonly bumped: Readonly<Record<string, readonly [string, string]>>
+  readonly edits: number
 }
 
 export interface PackageFacts {
@@ -296,7 +301,14 @@ export async function packagePass(input: PackageInput): Promise<PackageResult> {
 function passSync(input: PackageInput): PackageResult {
   const { path, text, target } = input
   const facts = analyse(path, text)
-  const unchanged = (flags: readonly Flag[]): PackageResult => ({ path, text, changed: false, flags: sortFlags(flags), refused: facts.refused })
+  const unchanged = (flags: readonly Flag[]): PackageResult => ({
+    path,
+    text,
+    changed: false,
+    flags: sortFlags(flags),
+    refused: facts.refused,
+    ...NO_CHANGES,
+  })
   if (!facts.parsed || facts.refused !== null) return unchanged(facts.flags)
   const live = new Set([...input.live, ...(input.pinned ?? [])])
   if (!facts.owner || (facts.entries.length === 0 && facts.overrides.length === 0 && facts.nested.length === 0 && live.size === 0)) {
@@ -551,7 +563,29 @@ function passSync(input: PackageInput): PackageResult {
   if (input.partial || input.skipEdits || (t3 && !input.released)) return unchanged([...reasons, ...info])
 
   const out = applyOps(facts, ops)
-  return { path, text: out, changed: out !== text, flags: sortFlags([...info, ...planned]), refused: null }
+  return { path, text: out, changed: out !== text, flags: sortFlags([...info, ...planned]), refused: null, ...changesOf(facts, analyse(path, out)) }
+}
+
+const NO_CHANGES = { removed: [], added: {}, bumped: {}, edits: 0 } as const
+
+// Compared by name across the dependency sections, so an entry that only moved section is no edit.
+function changesOf(before: Facts, after: Facts): Pick<PackageResult, 'removed' | 'added' | 'bumped' | 'edits'> {
+  const lines = (f: Facts) => {
+    const out = new Map<string, string>()
+    for (const section of DEP_SECTIONS) for (const e of f.entries) if (e.section === section && !out.has(e.name)) out.set(e.name, e.range)
+    return out
+  }
+  const was = lines(before)
+  const now = lines(after)
+  const removed = [...was.keys()].filter((name) => !now.has(name)).sort()
+  const added: Record<string, string> = {}
+  const bumped: Record<string, readonly [string, string]> = {}
+  for (const [name, range] of [...now].sort(([a], [b]) => a.localeCompare(b))) {
+    const old = was.get(name)
+    if (old === undefined) added[name] = range
+    else if (old !== range) bumped[name] = [old, range]
+  }
+  return { removed, added, bumped, edits: removed.length + Object.keys(added).length + Object.keys(bumped).length }
 }
 
 const sortFlags = (flags: readonly Flag[]) => [...flags].sort((a, b) => a.line - b.line || a.column - b.column || a.rule.localeCompare(b.rule))

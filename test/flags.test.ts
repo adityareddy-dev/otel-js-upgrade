@@ -5,11 +5,8 @@ import { runFile } from '../src/engine/run.js'
 import { flags } from '../src/rules/flags.js'
 import { checkFixture, fixtureCases } from './fixture-runner.js'
 
-// Staged under _staged so fixtures.test.ts skips them until the flags pass is in RULES. The integrator moves _staged/flags to flags.
-const cases = [
-  ...fixtureCases(fileURLToPath(new URL('./fixtures/_staged', import.meta.url))),
-  ...fixtureCases(fileURLToPath(new URL('./fixtures', import.meta.url))).filter((c) => c.group.startsWith('flags/')),
-]
+// The flag cases with the flags pass alone. fixtures.test.ts runs them again with every pass.
+const cases = fixtureCases(fileURLToPath(new URL('./fixtures', import.meta.url))).filter((c) => c.group.startsWith('flags/'))
 
 test('the flag fixtures are found', () => {
   expect(cases.length).toBeGreaterThan(0)
