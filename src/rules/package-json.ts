@@ -18,8 +18,12 @@ export interface PackageInput {
   readonly target: Target
   // Whether SDK 3.0.0 is released. The CLI passes versions.ts' released, tests pass both.
   readonly released: boolean
-  // @opentelemetry/* packages this package's files load after the run (FileResult.modules, hoisted by liveByPackage).
+  // @opentelemetry/* packages this package's files load after the run (FileResult.modules, hoisted by importersByPackage).
   readonly live: ReadonlySet<string>
+  // The files behind each module in `live` (importersByPackage), named in the note on a package that isn't added.
+  readonly importers?: ReadonlyMap<string, readonly string[]>
+  // Modules in `live` that a file loads only since this run rewrote it (gainedByPackage). Always added when missing.
+  readonly gained?: ReadonlySet<string>
   // Packages of bindings a rule pinned on their old module. Kept live like `live`.
   readonly pinned?: ReadonlySet<string>
   // Scanned code files no package.json owns, with the modules they load. What this package lists of those is kept (2.6).
@@ -292,22 +296,33 @@ function ownerChain(file: string, owners: readonly string[]): string[] {
 }
 
 // Each module a file loads is live in the nearest package that lists it, else in the file's own package (hoisting).
-export function liveByPackage(
+// Per package, the files that load each module, as `shown` when given, for the notes that name them.
+export function importersByPackage(
   packages: readonly { readonly path: string; readonly text: string }[],
-  files: readonly { readonly path: string; readonly modules: readonly string[] }[],
-): Map<string, Set<string>> {
+  files: readonly { readonly path: string; readonly shown?: string; readonly modules: readonly string[] }[],
+): Map<string, Map<string, string[]>> {
   const facts = new Map(packages.map((p) => [p.path, readPackage(p.path, p.text)]))
   const owners = packages.filter((p) => facts.get(p.path)?.owner === true).map((p) => p.path)
-  const live = new Map(owners.map((p) => [p, new Set<string>()]))
+  const live = new Map(owners.map((p) => [p, new Map<string, string[]>()]))
   for (const file of files) {
     const chain = ownerChain(file.path, owners)
     if (chain.length === 0) continue
     for (const module of file.modules) {
       const home = chain.find((p) => facts.get(p)?.declared.has(module) === true) ?? chain[0]
-      if (home !== undefined) live.get(home)?.add(module)
+      const modules = home === undefined ? undefined : live.get(home)
+      if (modules) modules.set(module, [...(modules.get(module) ?? []), file.shown ?? file.path])
     }
   }
   return live
+}
+
+// Per package, the modules a file of it loads only since the run rewrote it, homed as importersByPackage does.
+export function gainedByPackage(
+  packages: readonly { readonly path: string; readonly text: string }[],
+  files: readonly { readonly path: string; readonly modules: readonly string[]; readonly before?: readonly string[] }[],
+): Map<string, Set<string>> {
+  const gained = files.flatMap((f) => (f.before ? [{ path: f.path, modules: f.modules.filter((m) => !f.before!.includes(m)) }] : []))
+  return new Map([...importersByPackage(packages, gained)].map(([p, modules]) => [p, new Set(modules.keys())]))
 }
 
 // The files no package owns, a shared tracing.js a Dockerfile copies into each service.
@@ -516,7 +531,17 @@ function passSync(input: PackageInput): PackageResult {
     }
   }
 
+  // Added: what a removed package brought in, the api, and any import this run wrote. An import that was already there is named, not added.
+  const gainedModules = new Set([...gained.flatMap((f) => f.modules), ...(input.gained ?? [])])
   for (const name of missing) {
+    if (name !== API && !broughtIn.has(name) && !gainedModules.has(name)) {
+      const files = [...(input.importers?.get(name) ?? [])].sort()
+      const others = files.length - 1
+      const who = files.length === 0 ? 'Code in this package imports' : others === 0 ? `${files[0]} imports` : `${files[0]} and ${others} other file${others === 1 ? '' : 's'} import`
+      const message = `${who} ${name}, which package.json doesn't list. It isn't added, since nothing this move removes installed it. Add it yourself if the package needs it.`
+      planned.push(makeFlag(path, 'package-json-skipped', { line: 1, column: 1 }, message, { severity: 'note' }))
+      continue
+    }
     const version = name === API ? `^${map[API] ?? ''}` : `${common}${map[name] ?? ''}`
     write({ section: broughtIn.get(name) ?? addTo, name }, version)
   }

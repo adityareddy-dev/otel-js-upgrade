@@ -6,7 +6,6 @@
     "@opentelemetry/exporter-trace-otlp-http": "~0.300.0",
     "@opentelemetry/instrumentation-express": "^0.50.0",
     "@opentelemetry/resources": "~3.0.0",
-    "@opentelemetry/sdk-logs": "~3.0.0",
     "@opentelemetry/sdk-trace": "~3.0.0"
   }
 }

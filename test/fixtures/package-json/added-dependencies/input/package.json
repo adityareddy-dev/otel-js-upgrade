@@ -3,6 +3,7 @@
   "dependencies": {
     "@opentelemetry/core": "~2.0.0",
     "@opentelemetry/exporter-trace-otlp-http": "~0.200.0",
-    "@opentelemetry/instrumentation-express": "^0.50.0"
+    "@opentelemetry/instrumentation-express": "^0.50.0",
+    "@opentelemetry/sdk-trace-base": "~2.0.0"
   }
 }
