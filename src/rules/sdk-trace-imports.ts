@@ -90,18 +90,38 @@ function exportedProvider(expr: SgNode, exported: Set<string>): SgNode | null {
   if (parent.kind() === 'assignment_expression' && /^(module\.exports|exports)\b/.test(parent.field('left')?.text() ?? '')) return expr
   if (parent.kind() === 'variable_declarator' && parent.field('value')?.id() === node.id()) {
     const name = parent.field('name')
-    if (name?.kind() === 'identifier' && (isExportedStatement(parent) || exported.has(name.text()))) return name
-    return null
+    if (name?.kind() !== 'identifier') return null
+    if (isExportedStatement(parent) || exported.has(name.text())) return name
+    const fn = enclosingFunction(parent)
+    return fn && returnsLocal(fn, name.text()) ? exportedFunction(fn, exported) : null
   }
   const returned = parent.kind() === 'return_statement' || (parent.kind() === 'arrow_function' && parent.field('body')?.id() === node.id())
   if (!returned) return null
   const fn = parent.kind() === 'arrow_function' ? parent : enclosingFunction(parent)
-  if (!fn) return null
+  return fn ? exportedFunction(fn, exported) : null
+}
+
+// The exported name of a function, the function itself for an unnamed default export, or null.
+function exportedFunction(fn: SgNode, exported: Set<string>): SgNode | null {
   const holder = fn.parent()
   const name = fn.field('name') ?? (holder?.kind() === 'variable_declarator' ? holder.field('name') : null)
   if (isExportedStatement(fn)) return name ?? fn
   if (name && exported.has(name.text())) return name
   return null
+}
+
+const WRAPPERS = new Set(['parenthesized_expression', 'as_expression', 'satisfies_expression', 'non_null_expression'])
+
+// A function that declares a name once and returns it, const provider = new ...; return provider.
+function returnsLocal(fn: SgNode, local: string): boolean {
+  const name = `^${local.replace(/\$/g, '\\$')}$`
+  if (fn.findAll({ rule: { kind: 'variable_declarator', has: { field: 'name', regex: name } } }).length !== 1) return false
+  return fn.findAll({ rule: { kind: 'return_statement' } }).some((r) => {
+    if (enclosingFunction(r)?.id() !== fn.id()) return false
+    let value: SgNode | null = r.namedChildren().find((c) => c.kind() !== 'comment') ?? null
+    while (value && WRAPPERS.has(String(value.kind()))) value = value.namedChildren()[0] ?? null
+    return value?.kind() === 'identifier' && value.text() === local
+  })
 }
 
 export const sdkTraceImports: Rule = {
@@ -190,16 +210,25 @@ export const sdkTraceImports: Rule = {
         ctx.flag('instanceof-provider', right, `instanceof ${right.text()} now also matches the TracerProvider of every other platform, since the Node, web and basic providers are one class in ${SDK_TRACE}.`)
       }
       const exported = exportedNames(ctx.tree)
-      for (const expr of ctx.tree.findAll({ rule: { kind: 'new_expression' } })) {
-        const callee = expr.field('constructor')
-        if (callee?.kind() !== 'identifier' || !names.has(callee.text())) continue
-        const at = exportedProvider(expr, exported)
+      const flagged = new Set<number>()
+      const publicApi = (at: SgNode | null, local: string) => {
+        if (at === null || flagged.has(at.range().start.index)) return
+        flagged.add(at.range().start.index)
         // BasicTracerProvider never had register(), what changes for its callers is the class.
         const message =
-          names.get(callee.text()) === 'BasicTracerProvider'
+          names.get(local) === 'BasicTracerProvider'
             ? `This provider becomes a TracerProvider from ${SDK_TRACE}, so other modules that type it or check instanceof against BasicTracerProvider from @opentelemetry/sdk-trace-base have to move with it.`
             : 'This provider has no register() after the move, callers in other modules must switch to the global setters.'
-        if (at) ctx.flag('public-api', at, message, { severity: 'todo' })
+        ctx.flag('public-api', at, message, { severity: 'todo' })
+      }
+      for (const expr of ctx.tree.findAll({ rule: { kind: 'new_expression' } })) {
+        const callee = expr.field('constructor')
+        if (callee?.kind() === 'identifier' && names.has(callee.text())) publicApi(exportedProvider(expr, exported), callee.text())
+      }
+      // An exported function whose return type names the provider returns one, whatever its body does.
+      for (const fn of ctx.tree.findAll(kindRule(ctx.lang, [...FUNCTIONS]))) {
+        const type = fn.field('return_type')?.findAll({ rule: { kind: 'type_identifier' } }).find((t) => names.has(t.text()))
+        if (type) publicApi(exportedFunction(fn, exported), type.text())
       }
     }
     return edits
