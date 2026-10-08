@@ -51,7 +51,7 @@ describe('read', () => {
   })
 
   test('a BOM is passed to the parser and offsets still line up', () => {
-    const text = "﻿import { A } from '@opentelemetry/sdk-trace-base'\n"
+    const text = "\uFEFFimport { A } from '@opentelemetry/sdk-trace-base'\n"
     const ctx = context('a.ts', text)
     const b = ctx.bindings[0]!
     expect(text.slice(b.node.range().start.index, b.node.range().end.index)).toBe('A')
@@ -151,9 +151,13 @@ describe('broken trees', () => {
     expect(r.status).toBe('skipped')
     expect(r.flags.map((f) => [f.rule, f.line, f.column])).toEqual([['manual-review', 2, 9]])
     expect(r.flags[0]!.message).toBe(
-      `The parser can't read ";\\n" at 2:9, the file may be valid TypeScript. Migrate it by hand or pass --ignore.`,
+      "the parser can't read foo(a, b; at 2:9, the file may be valid TypeScript. Migrate it by hand or pass --ignore.",
     )
+    expect(r.reason).toBe(r.flags[0]!.message)
     expect(r.modules).toEqual(['@opentelemetry/sdk-trace-base'])
+    const gap = runFile({ path: 'a.ts', text: "import { A } from '@opentelemetry/sdk-trace-base'\nexport type * from './x'\n", target: '3', rules: [] })
+    expect(gap.status).toBe('skipped')
+    expect(gap.reason).toMatch(/^the parser can't read export type \* from '\.\/x' at 2:8, /)
   })
 })
 
@@ -505,7 +509,7 @@ describe('flags and ignores', () => {
     const thrower: Rule = { ...insertAbove, run: () => [{ start: 0, end: 5, text: 'x' }, { start: 3, end: 8, text: 'y' }] }
     const r = runFile({ path: 'a.ts', text, target: '3', rules: [thrower] })
     expect(r).toMatchObject({ status: 'error', text })
-    expect(r.reason).toMatch(/^register: edits overlap/)
+    expect(r.reason).toBe('rule register threw: overlapping edits at 3-5, file not touched')
   })
 
   test('a rule that leaves a broken file makes it an error', () => {
