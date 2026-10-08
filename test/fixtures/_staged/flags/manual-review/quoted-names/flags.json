@@ -1,0 +1,5 @@
+[
+  {"rule":"manual-review","severity":"todo","line":4,"column":12,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md"},
+  {"rule":"manual-review","severity":"todo","line":8,"column":28,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md"},
+  {"rule":"manual-review","severity":"todo","line":8,"column":61,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md"}
+]

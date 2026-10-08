@@ -1,0 +1,7 @@
+[
+  {"rule":"deep-import","severity":"todo","line":1,"column":28,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md"},
+  {"rule":"deep-import","severity":"todo","line":2,"column":25,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md"},
+  {"rule":"deep-import","severity":"todo","line":4,"column":11,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md"},
+  {"rule":"deep-import","severity":"todo","line":5,"column":17,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md"},
+  {"rule":"deep-import","severity":"todo","line":6,"column":31,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md"}
+]

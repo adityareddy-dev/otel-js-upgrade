@@ -1,0 +1,6 @@
+[
+  {"rule":"force-flush-timeout","severity":"todo","line":4,"column":39,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-tracerprovideroptionsforceflushtimeoutmillis"},
+  {"rule":"force-flush-timeout","severity":"todo","line":5,"column":19,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-tracerprovideroptionsforceflushtimeoutmillis"},
+  {"rule":"force-flush-timeout","severity":"todo","line":7,"column":19,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-tracerprovideroptionsforceflushtimeoutmillis"},
+  {"rule":"force-flush-timeout","severity":"todo","line":9,"column":36,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-tracerprovideroptionsforceflushtimeoutmillis"}
+]
