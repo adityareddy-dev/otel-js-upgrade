@@ -1,0 +1,6 @@
+[
+  {"file": "package.json", "rule": "contrib-packages", "severity": "note", "line": 20, "column": 5},
+  {"file": "package.json", "rule": "package-json-skipped", "severity": "note", "line": 22, "column": 5, "message": "@opentelemetry/context-zone 2.11.0 brings its own older @opentelemetry/core, so the tree holds two copies. Raise it to 2.12.0 to match @opentelemetry/sdk-trace."},
+  {"file": "package.json", "rule": "package-json-skipped", "severity": "note", "line": 35, "column": 5, "message": "@opentelemetry/sdk-logs 0.222.0 brings its own older @opentelemetry/core, so the tree holds two copies. Raise it to 0.223.0 to match @opentelemetry/sdk-trace."},
+  {"file": "package.json", "rule": "package-json-skipped", "severity": "note", "line": 36, "column": 5, "message": "@opentelemetry/sdk-metrics 2.11.0 brings its own older @opentelemetry/core, so the tree holds two copies. Raise it to 2.12.0 to match @opentelemetry/sdk-trace."}
+]

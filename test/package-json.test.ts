@@ -7,11 +7,14 @@ import { TARGETS, type Target } from '../src/data/rules.js'
 import { REMOVED } from '../src/data/versions.js'
 import { runFile } from '../src/engine/run.js'
 import type { Flag } from '../src/engine/types.js'
+import { RULES } from '../src/rules/index.js'
 import { liveByPackage, ownerOf, packagePass, readPackage } from '../src/rules/package-json.js'
 
 // Project cases: input/ and expected/ trees, flags.json with a file field. expected.2.12/ and flags.2.12.json when 2.12 differs.
 // Code files run through the engine with no passes, so these cases keep their meaning whatever rules are registered.
+// The demo's project cases under fixtures/demo run every pass, as the CLI does.
 interface Options {
+  every?: boolean
   // Run target 3 with released false only, and compare against expected/ exactly.
   released?: boolean
   skipPackageJson?: boolean
@@ -22,6 +25,7 @@ interface Options {
 type ExpectedFlag = Pick<Flag, 'rule' | 'severity' | 'line' | 'column'> & { file: string; message?: string; link?: string }
 
 const ROOT = fileURLToPath(new URL('./fixtures/package-json', import.meta.url))
+const DEMO = fileURLToPath(new URL('./fixtures/demo', import.meta.url))
 const CODE = /\.(?:js|jsx|mjs|cjs|ts|tsx|mts|cts)$/
 const UNPARSED = /\.(?:vue|svelte|astro)$/
 
@@ -67,7 +71,7 @@ async function runProject(input: Tree, target: Target, released: boolean, option
     }
     if (!CODE.test(path)) continue
     const ranges = owner === undefined ? {} : (facts.get(owner)?.ranges ?? {})
-    const result = runFile({ path, text, target, rules: [], packageRanges: ranges })
+    const result = runFile({ path, text, target, rules: options.every === true ? RULES : [], packageRanges: ranges })
     files.push({ path, modules: [...result.modules] })
     out.set(path, result.text)
     for (const f of result.flags) flags.push({ file: path, rule: f.rule, severity: f.severity, line: f.line, column: f.column, message: f.message, link: f.link })
@@ -134,16 +138,22 @@ function compareTrees(where: string, actual: Tree, expected: Tree) {
   }
 }
 
-const cases = existsSync(ROOT) ? readdirSync(ROOT).filter((d) => !d.startsWith('_') && existsSync(join(ROOT, d, 'input'))).sort() : []
+const projects = (root: string, prefix: string) =>
+  existsSync(root)
+    ? readdirSync(root)
+        .filter((d) => !d.startsWith('_') && existsSync(join(root, d, 'input')))
+        .sort()
+        .map((d) => ({ name: `${prefix}${d}`, dir: join(root, d), every: prefix !== '' }))
+    : []
+const cases = [...projects(ROOT, ''), ...projects(DEMO, 'demo/')]
 
 const readJson = <T>(path: string, fallback: T): T => (existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as T) : fallback)
 
 describe('package-json project cases', () => {
   test('there are cases', () => expect(cases.length).toBeGreaterThan(0))
 
-  for (const name of cases) {
-    const dir = join(ROOT, name)
-    const options = readJson<Options>(join(dir, 'options.json'), {})
+  for (const { name, dir, every } of cases) {
+    const options = { ...readJson<Options>(join(dir, 'options.json'), {}), ...(every ? { every } : {}) }
     const only = existsSync(join(dir, 'target')) ? readFileSync(join(dir, 'target'), 'utf8').trim() : null
     const targets = only === null ? TARGETS : TARGETS.filter((t) => t === only)
 
