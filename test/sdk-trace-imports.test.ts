@@ -243,3 +243,21 @@ describe('line endings', () => {
     )
   })
 })
+
+describe('keep list', () => {
+  test('a binding kept twice is split out once', () => {
+    const keepTwice: Rule = {
+      id: 'register',
+      targets: TARGETS,
+      run(ctx: FileContext) {
+        const ref = { module: '@opentelemetry/sdk-trace-node', local: 'NodeTracerProvider' }
+        ctx.importPlan.keep.push(ref, { ...ref })
+        return []
+      },
+    }
+    const text = lines("import { NodeTracerProvider, ConsoleSpanExporter } from '@opentelemetry/sdk-trace-node';")
+    expect(run('a.ts', text, [keepTwice, sdkTraceImports, imports]).text).toBe(
+      lines("import { ConsoleSpanExporter } from '@opentelemetry/sdk-trace';", "import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';"),
+    )
+  })
+})
