@@ -1,0 +1,4 @@
+[
+  {"rule":"jaeger-exporter","severity":"todo","line":1,"column":1,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#opentelemetryexporter-jaeger-package-removed"},
+  {"rule":"jaeger-exporter","severity":"todo","line":3,"column":18,"link":"https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#opentelemetryexporter-jaeger-package-removed"}
+]
