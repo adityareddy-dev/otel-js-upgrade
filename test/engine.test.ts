@@ -477,6 +477,17 @@ describe('flags and ignores', () => {
     expect(r).toMatchObject({ status: 'skipped', text: ignored, flags: [], modules: ['@opentelemetry/sdk-trace-node'] })
   })
 
+  test('a comment naming a removed package keeps nothing live, a string, a JSDoc import() or a types reference does', () => {
+    const modulesOf = (text: string) => runFile({ path: 'a.ts', text, target: '3', rules: [] }).modules
+    const head = "import { trace } from '@opentelemetry/api'\n"
+    const api = '@opentelemetry/api'
+    expect(modulesOf(`${head}// import { X } from '@opentelemetry/sdk-trace-base'\n/* '@opentelemetry/sdk-trace-node' */\n`)).toEqual([api])
+    expect(modulesOf(`${head}/**\n * import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';\n */\nexport const a = 1\n`)).toEqual([api])
+    expect(modulesOf(`${head}export const external = ['@opentelemetry/sdk-trace-node']\n`)).toEqual([api, '@opentelemetry/sdk-trace-node'])
+    expect(modulesOf(`${head}/** @type {import('@opentelemetry/sdk-trace-base').SpanExporter} */\nlet e\n`)).toEqual([api, '@opentelemetry/sdk-trace-base'])
+    expect(modulesOf(`/// <reference types="@opentelemetry/sdk-trace-web" />\n${head}`)).toEqual([api, '@opentelemetry/sdk-trace-web'])
+  })
+
   test('ignore-file wins over a parse error, generated files are skipped', () => {
     const broken = "// otel-js-upgrade-ignore-file\nimport { A } from '@opentelemetry/sdk-trace-base'\nfoo(a, b;\n"
     expect(runFile({ path: 'a.ts', text: broken, target: '3', rules: [] })).toMatchObject({ status: 'skipped', flags: [] })
