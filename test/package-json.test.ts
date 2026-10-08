@@ -8,7 +8,7 @@ import { REMOVED } from '../src/data/versions.js'
 import { runFile } from '../src/engine/run.js'
 import type { Flag } from '../src/engine/types.js'
 import { RULES } from '../src/rules/index.js'
-import { installedNowhere, liveByPackage, outsideEvery, ownerOf, packagePass, readPackage } from '../src/rules/package-json.js'
+import { gainedByPackage, importersByPackage, installedNowhere, outsideEvery, ownerOf, packagePass, readPackage } from '../src/rules/package-json.js'
 
 // Project cases: input/ and expected/ trees, flags.json with a file field. expected.2.12/ and flags.2.12.json when 2.12 differs.
 // Code files run through the engine with no passes, so these cases keep their meaning whatever rules are registered.
@@ -79,7 +79,8 @@ async function runProject(input: Tree, target: Target, released: boolean, option
   }
 
   const texts = considered.map((p) => ({ path: p, text: input.get(p) ?? '' }))
-  const live = liveByPackage(texts, files)
+  const importers = importersByPackage(texts, files)
+  const gainedHere = gainedByPackage(texts, files)
   const outside = outsideEvery(texts, files)
   for (const f of installedNowhere(texts, outside)) flags.push({ file: f.path, rule: f.rule, severity: f.severity, line: f.line, column: f.column, message: f.message, link: f.link })
   for (const path of considered) {
@@ -88,7 +89,9 @@ async function runProject(input: Tree, target: Target, released: boolean, option
       text: input.get(path) ?? '',
       target,
       released,
-      live: live.get(path) ?? new Set(),
+      live: new Set(importers.get(path)?.keys()),
+      importers: importers.get(path) ?? new Map(),
+      gained: gainedHere.get(path) ?? new Set(),
       outside,
       partial: partial.has(path),
       skipEdits: options.skipPackageJson === true,
@@ -230,5 +233,24 @@ describe('package-json helpers', () => {
     const json = JSON.parse(result.text) as Record<string, Record<string, string>>
     expect(json['dependencies']).toEqual({ '@opentelemetry/core': '^2.12.0', '@opentelemetry/sdk-trace': '^2.12.0' })
     expect(json['devDependencies']).toEqual({ '@opentelemetry/context-async-hooks': '^2.12.0' })
+  })
+
+  test('an unlisted import is added only when a removed package installed it, else a note names its files', async () => {
+    const text = '{\n  "name": "lib",\n  "dependencies": {\n    "@opentelemetry/sdk-trace-node": "^2.11.0"\n  }\n}\n'
+    const importers = new Map([
+      ['@opentelemetry/sdk-trace', ['src/a.ts']],
+      ['@opentelemetry/resources', ['src/a.ts']],
+      ['@opentelemetry/sdk-logs', ['src/logs.ts', 'examples/logs.ts']],
+    ])
+    const result = await packagePass({ path: 'package.json', text, target: '2.12', released: true, live: new Set(importers.keys()), importers })
+    const json = JSON.parse(result.text) as Record<string, Record<string, string>>
+    expect(json['dependencies']).toEqual({ '@opentelemetry/resources': '^2.12.0', '@opentelemetry/sdk-trace': '^2.12.0' })
+    expect(result.flags.map((f) => [f.rule, f.severity, f.message])).toEqual([
+      [
+        'package-json-skipped',
+        'note',
+        "examples/logs.ts and 1 other file import @opentelemetry/sdk-logs, which package.json doesn't list. It isn't added, since nothing this move removes installed it. Add it yourself if the package needs it.",
+      ],
+    ])
   })
 })

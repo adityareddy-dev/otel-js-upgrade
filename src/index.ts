@@ -14,7 +14,7 @@ import { decode } from './engine/read.js'
 import { runFile } from './engine/run.js'
 import type { Binding, FileResult, FileStatus, Flag, Position, Rule } from './engine/types.js'
 import { RULES } from './rules/index.js'
-import { installedNowhere, liveByPackage, outsideEvery, packagePass, readPackage, type PackageFacts } from './rules/package-json.js'
+import { gainedByPackage, importersByPackage, installedNowhere, outsideEvery, packagePass, readPackage, type PackageFacts } from './rules/package-json.js'
 import { textFlags } from './scan/text.js'
 
 export type { FlagId, RuleId, Severity, Target } from './data/rules.js'
@@ -400,7 +400,8 @@ export async function run(options: RunOptions): Promise<RunResult> {
     loads.push({ path: e.found.abs, shown: e.found.path, modules: e.result.modules, ...before })
   }
   const manifestTexts = states.map((s) => ({ path: s.manifest.abs, text: s.manifest.text ?? '' }))
-  const live = liveByPackage(manifestTexts, loads)
+  const importers = importersByPackage(manifestTexts, loads)
+  const gainedHere = gainedByPackage(manifestTexts, loads)
   const outside = outsideEvery(manifestTexts, loads).map((f) => ({ path: f.shown, modules: f.modules, ...(f.before ? { before: f.before } : {}) }))
   flags.push(...installedNowhere(manifestTexts, outside))
   const outcomes = new Map<string, PackageOutcome>()
@@ -410,7 +411,9 @@ export async function run(options: RunOptions): Promise<RunResult> {
       text: s.manifest.text ?? '',
       target,
       released,
-      live: live.get(s.manifest.abs) ?? new Set(),
+      live: new Set(importers.get(s.manifest.abs)?.keys()),
+      importers: importers.get(s.manifest.abs) ?? new Map(),
+      gained: gainedHere.get(s.manifest.abs) ?? new Set(),
       outside,
       partial: s.partial,
       skipEdits: !selected.has('package-json'),

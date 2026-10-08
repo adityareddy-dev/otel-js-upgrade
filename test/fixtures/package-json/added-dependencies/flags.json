@@ -1,6 +1,14 @@
 [
   {
     "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "note",
+    "line": 1,
+    "column": 1,
+    "message": "src/tracing.ts imports @opentelemetry/sdk-logs, which package.json doesn't list. It isn't added, since nothing this move removes installed it. Add it yourself if the package needs it."
+  },
+  {
+    "file": "package.json",
     "rule": "contrib-packages",
     "severity": "note",
     "line": 6,
