@@ -1,0 +1,58 @@
+{
+  "name": "otel-js-upgrade",
+  "version": "0.1.0",
+  "description": "Upgrades an OpenTelemetry JavaScript setup to SDK 3.0",
+  "keywords": [
+    "opentelemetry",
+    "codemod",
+    "upgrade",
+    "migration",
+    "sdk-trace",
+    "sdk-node"
+  ],
+  "license": "Apache-2.0",
+  "author": "Aditya Reddy",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adityareddy-dev/otel-js-upgrade.git"
+  },
+  "homepage": "https://github.com/adityareddy-dev/otel-js-upgrade#readme",
+  "bugs": "https://github.com/adityareddy-dev/otel-js-upgrade/issues",
+  "type": "module",
+  "bin": {
+    "otel-js-upgrade": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "smoke": "node dist/cli.js --help",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@ast-grep/napi": "0.45.3",
+    "jsonc-parser": "3.3.1",
+    "picocolors": "1.1.1",
+    "tinyglobby": "0.2.17"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  }
+}
