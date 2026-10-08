@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import { beforeAll, expect, test } from 'vitest'
 
 import { released } from '../src/data/versions.js'
+const version = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version
 
 // These run the built bin, so npm run build comes first, as it does in CI.
 const CLI = 'dist/cli.js'
@@ -73,7 +74,7 @@ test('a usage error with --json still prints one JSON document', () => {
 test('a dry run prints the header and the scan line, writes nothing and exits 0', () => {
   const r = cli('2.12', project)
   expect(r.status).toBe(0)
-  expect(r.stdout.split('\n')[0]).toBe('otel-js-upgrade 0.1.0, target 2.12, dry run (nothing written)')
+  expect(r.stdout.split('\n')[0]).toBe(`otel-js-upgrade ${version}, target 2.12, dry run (nothing written)`)
   expect(r.stdout).toContain('Scanned 1 file in 1 package.')
   expect(r.stdout).not.toMatch(/\x1b\[/)
 })

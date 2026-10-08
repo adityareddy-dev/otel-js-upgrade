@@ -9,6 +9,7 @@ import { TARGETS, type Target } from '../src/data/rules.js'
 import type { Edit, Flag, Rule } from '../src/engine/types.js'
 import { released } from '../src/data/versions.js'
 import type { Report, RunResult } from '../src/index.js'
+const version = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version
 
 // Toy rules in the registry, the real text scans and package pass behind them.
 const state = vi.hoisted(() => ({ rules: [] as Rule[] }))
@@ -70,7 +71,7 @@ test('dry run: header, diff without the ===== line, closing lines byte for byte,
   const text = renderText(r, { color: false })
   expect(text).toBe(
     [
-      'otel-js-upgrade 0.1.0, target 3, dry run (nothing written)',
+      `otel-js-upgrade ${version}, target 3, dry run (nothing written)`,
       '',
       '--- a/src/tracing.ts',
       '+++ b/src/tracing.ts',
@@ -171,7 +172,7 @@ test.skipIf(released)('3 --write is refused before 3.0.0 is released, dry run an
   expect(r.report).toEqual({
     schema: 1,
     tool: 'otel-js-upgrade',
-    version: '0.1.0',
+    version,
     exitCode: 2,
     error: "SDK 3.0.0 isn't released yet (due 2026-10-15) and package.json can't get its final version numbers before then, so this version doesn't write target 3. A dry run of 3 shows what will change, and `otel-js-upgrade 2.12 --write` does the moves that work today. The next release lifts this once 3.0.0 is out.",
   })
@@ -311,7 +312,7 @@ test('a CRLF file shows its \\r in the diff, colour only when asked', async () =
 test('nothing to change keeps the flag sections, nothing found says so', async () => {
   const dir = project({ 'package.json': '{"name":"x"}\n', 'index.js': 'console.log(1)\n' })
   const none = renderText(await run({ target: '3', cwd: dir }), { color: false })
-  expect(none).toBe('otel-js-upgrade 0.1.0, target 3, dry run (nothing written)\n\nNo OpenTelemetry imports or dependencies found under the current directory. Nothing to do.\n')
+  expect(none).toBe(`otel-js-upgrade ${version}, target 3, dry run (nothing written)\n\nNo OpenTelemetry imports or dependencies found under the current directory. Nothing to do.\n`)
   writeFileSync(join(dir, 'package.json'), '{"name":"x","dependencies":{"@opentelemetry/auto-instrumentations-node":"^0.60.0"}}\n')
   const text = renderText(await run({ target: '2.12', cwd: dir }), { color: false })
   expect(text).toContain(
