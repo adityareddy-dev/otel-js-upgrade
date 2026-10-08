@@ -75,9 +75,8 @@ function exportedNames(root: SgNode): Set<string> {
 
 // A declaration written as export const, export function or export default.
 function isExportedStatement(node: SgNode): boolean {
-  let n: SgNode | null = node
+  let n: SgNode | null = node.parent()
   while (n && (n.kind() === 'variable_declarator' || n.kind() === 'lexical_declaration' || n.kind() === 'variable_declaration')) n = n.parent()
-  if (n === node) n = node.parent()
   return n?.kind() === 'export_statement'
 }
 
@@ -112,6 +111,8 @@ export const sdkTraceImports: Rule = {
     const old = ctx.original.bindings.filter((b) => b.supported && (TRACE_SOURCES as readonly string[]).includes(b.module))
     if (old.length === 0) return []
     markMoved(ctx, 'sdk-trace-imports')
+    // register pins the providers when it flags a call, the manual-review on them is still this rule's.
+    const pinnedBefore = new Set(old.filter((b) => isKept(ctx, b)))
     const keep = (b: Binding) => {
       const local = keyOf(b)
       if (local !== null && !isKept(ctx, b)) ctx.importPlan.keep.push({ module: b.module, local })
@@ -135,7 +136,9 @@ export const sdkTraceImports: Rule = {
     }
 
     // A provider stays on its package, with its register(), when a register() could not be expanded or a class extends it.
-    const providers = old.filter((b) => b.imported !== null && PROVIDERS.has(b.imported) && traceName(b.module, b.imported) && !isKept(ctx, b))
+    const providers = old.filter(
+      (b) => b.imported !== null && PROVIDERS.has(b.imported) && traceName(b.module, b.imported) && (pinnedBefore.has(b) || !isKept(ctx, b)),
+    )
     const unresolved = ctx.flags.some((f) => f.rule === 'register-unresolved')
     const locals = new Set(providers.map((b) => b.local).filter((l): l is string => l !== null))
     let subclass: string | null = null

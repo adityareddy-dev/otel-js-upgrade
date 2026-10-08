@@ -1,0 +1,3 @@
+[
+  { "rule": "public-api", "severity": "todo", "line": 51, "column": 14 }
+]
