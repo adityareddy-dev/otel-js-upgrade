@@ -51,7 +51,7 @@ The notes cover a re-export of a renamed name (someone downstream sees the chang
 
 `register()` in a file where every OpenTelemetry module comes in through `await import()` isn't expanded either, it gets the same todo as any `register()` it couldn't expand.
 
-These aren't looked at yet, nothing flags them:
+These aren't looked at yet:
 
 - Merging new names into an import you already have. 0.1.0 adds a declaration instead.
 - `HttpInstrumentationConfig.serverName`, which 3.0 removed.
