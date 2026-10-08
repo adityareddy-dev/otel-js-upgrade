@@ -13,6 +13,8 @@ import type { Binding, Edit, FileContext, Flag, ImportPlan, Member, Position, St
 const API_DEFAULT_REUSE = new Set<string>(API_DEFAULT_MEMBERS.filter((name) => name !== 'logs'))
 const NAMESPACE_FORMS = new Set(['namespace', 'import-equals', 'require-namespace'])
 const NOT_STATIC = new Set([
+  'esm-type',
+  'reexport-type',
   'dynamic-destructure',
   'dynamic-namespace',
   'dynamic-then',
