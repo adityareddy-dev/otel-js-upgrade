@@ -35,14 +35,14 @@ const FUNCTIONS = new Set([
 ])
 const BLOCKS = new Set(['program', 'statement_block', 'switch_case', 'switch_default'])
 const CLASSES = ['class_declaration', 'class', 'abstract_class_declaration']
-const OTEL = '@opentelemetry/'
 const BY_HAND =
   'Set the globals by hand with trace.setGlobalTracerProvider, context.setGlobalContextManager and propagation.setGlobalPropagator, since TracerProvider has no register().'
 
 const start = (n: SgNode) => n.range().start.index
 const end = (n: SgNode) => n.range().end.index
-const same = (a: SgNode, b: SgNode) => start(a) === start(b) && end(a) === end(b)
+const same = (a: SgNode | null, b: SgNode) => a !== null && start(a) === start(b) && end(a) === end(b)
 const code = (n: SgNode) => n.namedChildren().filter((c) => c.kind() !== 'comment')
+const short = (node: SgNode) => node.text().split(/\r?\n/, 1).join('').slice(0, 40)
 const linkFor = (platform: Platform | null) => guide(platform === 'web' ? 'sdkTraceWeb' : 'sdkTraceNode')
 
 function providerOf(b: Binding | undefined): Platform | 'basic' | undefined {
@@ -108,7 +108,8 @@ function receiverOf(ctx: FileContext, name: string): Receiver {
   for (const a of ctx.tree.findAll({ rule: { kind: 'assignment_expression', has: isName } })) values.push(a.field('right'))
   if (ctx.tree.find({ rule: { kind: 'augmented_assignment_expression', has: isName } })) values.push(null)
   const kinds = values.map((v) => {
-    if (v?.kind() === 'call_expression' && v.field('function')?.kind() === 'identifier') return factory(ctx, v.field('function')!.text())
+    const callee = v?.kind() === 'call_expression' ? v.field('function') : null
+    if (callee?.kind() === 'identifier') return factory(ctx, callee.text())
     return built(ctx, v)
   })
   const providers = kinds.filter((k): k is Platform | 'basic' => k !== 'other')
@@ -154,7 +155,7 @@ const isEnableCall = (n: SgNode) => {
     fn?.kind() === 'member_expression' &&
     fn.field('property')?.text() === 'enable' &&
     fn.field('object')?.kind() === 'new_expression' &&
-    code(n.field('arguments')!).length === 0
+    n.field('arguments')?.namedChildren().every((c) => c.kind() === 'comment') === true
   )
 }
 
@@ -188,13 +189,12 @@ const DEFAULTS: Settings = { contextManager: { kind: 'default' }, propagator: { 
 function settingsOf(ctx: FileContext, call: SgNode): Settings | string {
   const args = call.field('arguments')
   if (!args) return 'register() is called in a way this tool does not read'
-  const list = code(args)
-  if (list.length === 0) return checkComments(args, DEFAULTS)
-  if (list.length > 1) return 'register() is given more than one argument'
-  const arg = list[0]!
+  const [arg, ...rest] = code(args)
+  if (!arg) return checkComments(args, DEFAULTS)
+  if (rest.length > 0) return 'register() is given more than one argument'
   const whole = valueOf(ctx, arg)
   if (whole?.kind === 'default') return checkComments(args, DEFAULTS)
-  if (arg.kind() !== 'object') return `register() is given ${arg.text().split(/\r?\n/)[0]!.slice(0, 40)}, which is only known at runtime`
+  if (arg.kind() !== 'object') return `register() is given ${short(arg)}, which is only known at runtime`
   const found: Record<string, Value> = {}
   for (const entry of code(arg)) {
     let key: string | null = null
@@ -214,7 +214,7 @@ function settingsOf(ctx: FileContext, call: SgNode): Settings | string {
     if (key !== 'contextManager' && key !== 'propagator') return `register() is given the key ${key}, which this tool does not know`
     if (key in found) return `register() is given ${key} twice`
     const v = valueOf(ctx, value)
-    if (v === null) return `register() is given ${key}: ${value.text().split(/\r?\n/)[0]!.slice(0, 40)}, which is only known at runtime`
+    if (v === null) return `register() is given ${key}: ${short(value)}, which is only known at runtime`
     found[key] = v
   }
   return checkComments(args, {
@@ -291,12 +291,13 @@ function shifted(ctx: FileContext, node: SgNode, ind: string): string {
   const text = node.text()
   if (!text.includes('\n')) return text
   const lineStart = ctx.text.lastIndexOf('\n', start(node) - 1) + 1
-  const from = /^[ \t]*/.exec(ctx.text.slice(lineStart))![0]
+  const from = /^[ \t]*/.exec(ctx.text.slice(lineStart))?.[0] ?? ''
   if (from === ind) return text
   const strings = node.findAll(kindRule(ctx.lang, ['string', 'template_string']))
   const lines = text.split('\n')
-  const out = [lines[0]!]
-  let at = start(node) + lines[0]!.length + 1
+  const first = lines[0] ?? ''
+  const out = [first]
+  let at = start(node) + first.length + 1
   for (const line of lines.slice(1)) {
     if (strings.some((s) => start(s) < at && at < end(s))) return text
     at += line.length + 1
@@ -310,14 +311,18 @@ function shifted(ctx: FileContext, node: SgNode, ind: string): string {
 function expand(ctx: FileContext, x: Expansion, names: ReadonlyMap<string, string>): Edit {
   const s = start(x.statement)
   const lineStart = ctx.text.lastIndexOf('\n', s - 1) + 1
-  const lineInd = /^[ \t]*/.exec(ctx.text.slice(lineStart))![0]
+  const lineInd = /^[ \t]*/.exec(ctx.text.slice(lineStart))?.[0] ?? ''
   const startsLine = ctx.text.slice(lineStart, s).trim() === ''
   const braces = !BLOCKS.has(String(x.statement.parent()?.kind()))
   const unit = ctx.style.indent
   const ind = braces || !startsLine ? lineInd + unit : lineInd
   const br = ctx.eolAt(s)
   const semi = ctx.style.semi ? ';' : ''
-  const name = (module: string, imported: string) => names.get(`${module}\0${imported}`)!
+  const name = (module: string, imported: string) => {
+    const local = names.get(`${module}\0${imported}`)
+    if (local === undefined) throw new Error(`register: no local for ${imported} from ${module}`)
+    return local
+  }
   const cm = x.settings.contextManager
   const prop = x.settings.propagator
   const lines = x.setters.map((setter) => {
@@ -351,13 +356,14 @@ const optional = (...nodes: SgNode[]) => nodes.some((n) => n.children().some((c)
 
 function callOf(m: SgNode): SgNode | null {
   const parent = m.parent()
-  return parent?.kind() === 'call_expression' && parent.field('function') && same(parent.field('function')!, m) ? parent : null
+  return parent?.kind() === 'call_expression' && same(parent.field('function'), m) ? parent : null
 }
 
 // The expression statement a call makes up on its own, with or without await.
 function statementOf(call: SgNode): SgNode | null {
   let e = call
-  if (e.parent()?.kind() === 'await_expression') e = e.parent()!
+  const up = e.parent()
+  if (up?.kind() === 'await_expression') e = up
   const parent = e.parent()
   return parent?.kind() === 'expression_statement' ? parent : null
 }
@@ -365,32 +371,13 @@ function statementOf(call: SgNode): SgNode | null {
 const looksLikeProvider = (receiver: SgNode) => /provider/i.test(receiver.text())
 
 function heuristicFlag(ctx: FileContext, call: SgNode, receiver: SgNode) {
-  const text = receiver.text().split(/\r?\n/)[0]!.slice(0, 40)
+  const text = short(receiver)
   ctx.flag(
     'register-unresolved',
     call,
-    `${text}.register() looks like a tracer provider's, but this file doesn't create it, so it was not expanded. If it is a NodeTracerProvider or WebTracerProvider, ${BY_HAND[0]!.toLowerCase()}${BY_HAND.slice(1)}`,
+    `${text}.register() looks like a tracer provider's, but this file doesn't create it, so it was not expanded. If it is a NodeTracerProvider or WebTracerProvider, ${BY_HAND.charAt(0).toLowerCase()}${BY_HAND.slice(1)}`,
     { link: linkFor(null) },
   )
-}
-
-// The receiver heuristic on its own: every .register( call on a receiver named like a provider.
-export function flagProviderReceivers(ctx: FileContext): void {
-  for (const m of ctx.tree.findAll({ rule: { kind: 'member_expression' } })) {
-    const call = isRegister(m) ? callOf(m) : null
-    const receiver = m.field('object')
-    if (call && receiver && looksLikeProvider(receiver)) heuristicFlag(ctx, call, receiver)
-  }
-}
-
-// The heuristic for files with no @opentelemetry/ in them, which only the flags pass reaches. The register rule covers the rest.
-export const registerReceivers: Rule = {
-  id: 'flags',
-  targets: TARGETS,
-  run(ctx) {
-    if (!ctx.original.text.includes(OTEL)) flagProviderReceivers(ctx)
-    return []
-  },
 }
 
 function flagSubclasses(ctx: FileContext): boolean {
@@ -404,7 +391,7 @@ function flagSubclasses(ctx: FileContext): boolean {
     const body = cls.field('body')
     const own = body
       ?.findAll({ rule: { kind: 'method_definition' } })
-      .find((m) => m.field('name')?.text() === 'register' && m.parent() && same(m.parent()!, body))
+      .find((m) => m.field('name')?.text() === 'register' && same(m.parent(), body))
     const call = body?.findAll({ rule: { kind: 'member_expression' } }).find((m) => isRegister(m) && ['super', 'this'].includes(String(m.field('object')?.kind())))
     const at = own ?? call
     if (!at) continue
@@ -433,13 +420,13 @@ function run(ctx: FileContext): Edit[] {
     const call = callOf(m)
     if (!receiver) continue
     if (receiver.kind() === 'new_expression' && built(ctx, receiver) !== 'other') {
-      fail(call ?? m, null, `register() is called on a provider that is never stored, so it was not expanded. Keep the provider in a const and run the codemod again, or ${BY_HAND[0]!.toLowerCase()}${BY_HAND.slice(1)}`)
+      fail(call ?? m, null, `register() is called on a provider that is never stored, so it was not expanded. Keep the provider in a const and run the codemod again, or ${BY_HAND.charAt(0).toLowerCase()}${BY_HAND.slice(1)}`)
       continue
     }
     if (receiver.kind() === 'member_expression') {
       const held = heldBy(ctx, receiver)
       if (call && (held !== 'other' || looksLikeProvider(receiver))) {
-        const text = receiver.text().split(/\r?\n/)[0]!.slice(0, 40)
+        const text = short(receiver)
         const platform = held === 'node' || held === 'web' ? held : null
         fail(call, platform, `register() is called through ${text}, and this tool doesn't follow members, so it was not expanded. ${BY_HAND}`)
       }
@@ -501,7 +488,7 @@ function run(ctx: FileContext): Edit[] {
     const names = new Map<string, string>()
     for (const [module, name] of x.needs) names.set(`${module}\0${name}`, localFor(ctx, x.call, module, name))
     for (const s of x.setters) {
-      if (!existing.has(SETTER_CALLS[s]) && emitted.get(s)! < 2) continue
+      if (!existing.has(SETTER_CALLS[s]) && (emitted.get(s) ?? 0) < 2) continue
       ctx.flag(
         'duplicate-global',
         x.call,

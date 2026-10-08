@@ -6,11 +6,27 @@ import { expect, test } from 'vitest'
 import { TARGETS, type Target } from '../src/data/rules.js'
 import { parseFile } from '../src/engine/parse.js'
 import { runFile } from '../src/engine/run.js'
-import { register, registerReceivers } from '../src/rules/register.js'
+import type { Rule } from '../src/engine/types.js'
+import { register } from '../src/rules/register.js'
 
 // Until the imports pass lands, register runs alone: body lines and register's own flags are checked, declarations are not.
 const OWN = new Set(['register-unresolved', 'duplicate-global'])
-const rules = [registerReceivers, register]
+// Stands in for the flags pass, which owns .register( on a provider-named receiver in files without @opentelemetry/.
+const flagsStub: Rule = {
+  id: 'flags',
+  targets: TARGETS,
+  run(ctx) {
+    if (ctx.original.text.includes('@opentelemetry/')) return []
+    for (const m of ctx.tree.findAll({ rule: { kind: 'member_expression' } })) {
+      const call = m.parent()
+      const receiver = m.field('object')
+      if (m.field('property')?.text() !== 'register' || call?.kind() !== 'call_expression' || !receiver) continue
+      if (/provider/i.test(receiver.text())) ctx.flag('register-unresolved', call, 'left as it is')
+    }
+    return []
+  },
+}
+const rules = [flagsStub, register]
 
 const root = fileURLToPath(new URL('./fixtures', import.meta.url))
 const dirsIn = (dir: string) => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name) : [])
@@ -61,7 +77,8 @@ for (const dir of cases) {
   const name = dir.slice(root.length + 1).replace(/\\/g, '/')
   test(name, () => {
     const files = readdirSync(dir)
-    const input = files.find((f) => f.startsWith('input.'))!
+    const input = files.find((f) => f.startsWith('input.'))
+    if (!input) throw new Error(`${name} has no input file`)
     const ext = input.slice('input'.length)
     const only = existsSync(join(dir, 'target')) ? (read(join(dir, 'target')).trim() as Target) : null
     for (const target of only ? [only] : TARGETS) {
