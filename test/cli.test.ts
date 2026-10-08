@@ -30,6 +30,18 @@ test('--version prints the version alone', () => {
   expect(r.stdout).toMatch(/^\d+\.\d+\.\d+\n$/)
 })
 
+test('--version and --help win over --json and print plain text, exit 0', () => {
+  for (const args of [['--json', '--version'], ['3', '--version', '--json']]) {
+    const r = cli(...args)
+    expect(r.status).toBe(0)
+    expect(r.stdout).toMatch(/^\d+\.\d+\.\d+\n$/)
+    expect(r.stderr).toBe('')
+  }
+  const r = cli('--help', '--json')
+  expect(r.status).toBe(0)
+  expect(r.stdout).toContain('npx otel-js-upgrade <target> [paths...] [options]')
+})
+
 test.each([
   [[], 'missing target'],
   [['9'], 'unknown target 9'],

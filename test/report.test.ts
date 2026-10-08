@@ -187,7 +187,11 @@ test('--write is refused on uncommitted changes, and --allow-dirty lets it run',
   if (spawnSync('git', ['init', '-q'], { cwd: dir }).error) return ctx.skip()
   const r = await run({ target: '2.12', cwd: dir, mode: 'write' })
   expect(r.exitCode).toBe(2)
-  expect(r.report).toMatchObject({ schema: 1, exitCode: 2, error: expect.stringContaining('uncommitted changes under .') })
+  expect(r.report).toMatchObject({
+    schema: 1,
+    exitCode: 2,
+    error: '--write stopped, git reports uncommitted changes under the current directory. Commit or stash them first, or pass --allow-dirty.',
+  })
   expect(readFileSync(join(dir, 'src/tracing.ts'), 'utf8')).toBe(SOURCE)
   expect((await run({ target: '2.12', cwd: dir, mode: 'write', allowDirty: true })).exitCode).toBe(0)
 })
@@ -307,11 +311,16 @@ test('a CRLF file shows its \\r in the diff, colour only when asked', async () =
 test('nothing to change keeps the flag sections, nothing found says so', async () => {
   const dir = project({ 'package.json': '{"name":"x"}\n', 'index.js': 'console.log(1)\n' })
   const none = renderText(await run({ target: '3', cwd: dir }), { color: false })
-  expect(none).toBe('otel-js-upgrade 0.1.0, target 3, dry run (nothing written)\n\nNo OpenTelemetry imports or dependencies found under .. Nothing to do.\n')
+  expect(none).toBe('otel-js-upgrade 0.1.0, target 3, dry run (nothing written)\n\nNo OpenTelemetry imports or dependencies found under the current directory. Nothing to do.\n')
   writeFileSync(join(dir, 'package.json'), '{"name":"x","dependencies":{"@opentelemetry/auto-instrumentations-node":"^0.60.0"}}\n')
   const text = renderText(await run({ target: '2.12', cwd: dir }), { color: false })
   expect(text).toContain(
     "Notes (1)\n  package.json:1:29  contrib-packages\n    Contrib packages are left as they are, their 3.0-ready versions aren't known yet: @opentelemetry/auto-instrumentations-node.\n",
   )
   expect(text).toContain('\n\nNothing to change. Scanned 1 file in 1 package.\n')
+})
+
+test('an install directory with spaces is quoted', async () => {
+  const dir = project({ 'my app/package.json': PKG, 'my app/src/tracing.ts': SOURCE })
+  expect(renderText(await run({ target: '2.12', cwd: dir }), { color: false })).toContain('then run `npm install` in "my app" to update the lockfile.')
 })

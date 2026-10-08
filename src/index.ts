@@ -7,7 +7,7 @@ import { FLAG_LINKS } from './data/links.js'
 import { CONTEXT_ASYNC_HOOKS, SDK_TRACE, T6, TRACE_SOURCES } from './data/names.js'
 import { LATER_RULE_IDS, RULE_IDS, RULE_UNITS, TARGETS, type FlagId, type RuleId, type Severity, type Target } from './data/rules.js'
 import { released, REMOVED } from './data/versions.js'
-import { discover, displayPath, gitStatus, isCode, Manifests, pathProblem, within, type Found, type Manifest } from './discover.js'
+import { discover, displayPath, gitStatus, inSentence, isCode, Manifests, pathProblem, within, type Found, type Manifest } from './discover.js'
 import { bindingsOf } from './engine/bindings.js'
 import { parseFile } from './engine/parse.js'
 import { decode } from './engine/read.js'
@@ -319,8 +319,8 @@ export async function run(options: RunOptions): Promise<RunResult> {
   if (mode === 'write' && options.allowDirty !== true) {
     for (const p of paths) {
       const state = gitStatus(resolve(cwd, p))
-      if ('error' in state) return fail(`--write stopped, git status failed under ${p}: ${state.error}`, false)
-      if (state.dirty) return fail(`--write stopped, git reports uncommitted changes under ${p}. Commit or stash them first, or pass --allow-dirty.`, false)
+      if ('error' in state) return fail(`--write stopped, git status failed under ${inSentence(p)}: ${state.error}`, false)
+      if (state.dirty) return fail(`--write stopped, git reports uncommitted changes under ${inSentence(p)}. Commit or stash them first, or pass --allow-dirty.`, false)
     }
   }
 

@@ -1,6 +1,7 @@
 import { createColors } from 'picocolors'
 
 import { released } from '../data/versions.js'
+import { inSentence } from '../discover.js'
 import type { Flag, Install, Report, RunResult } from '../index.js'
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
@@ -13,7 +14,7 @@ const MODES: Record<Report['mode'], string> = {
   write: 'write',
 }
 
-const installList = (installs: readonly Install[]) => andList(installs.map((i) => `\`${i.command}\` in ${i.dir}`))
+const installList = (installs: readonly Install[]) => andList(installs.map((i) => `\`${i.command}\` in ${/\s/.test(i.dir) ? `"${i.dir}"` : i.dir}`))
 const lockfile = (installs: readonly Install[]) => (installs.length === 1 ? 'the lockfile' : 'the lockfiles')
 
 export function renderText(result: RunResult, options: { readonly color: boolean }): string {
@@ -23,7 +24,7 @@ export function renderText(result: RunResult, options: { readonly color: boolean
   const out: string[] = [`${report.tool} ${report.version}, target ${report.target}, ${MODES[report.mode]}`, ...result.notices, '']
 
   if (!result.found) {
-    out.push(`No OpenTelemetry imports or dependencies found under ${result.paths.join(', ')}. Nothing to do.`)
+    out.push(`No OpenTelemetry imports or dependencies found under ${andList(result.paths.map(inSentence))}. Nothing to do.`)
     return `${out.join('\n')}\n`
   }
 

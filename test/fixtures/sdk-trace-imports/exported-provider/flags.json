@@ -1,4 +1,4 @@
 [
-  { "rule": "public-api", "severity": "todo", "line": 3, "column": 14 },
-  { "rule": "public-api", "severity": "todo", "line": 4, "column": 17 }
+  { "rule": "public-api", "severity": "todo", "line": 3, "column": 14, "message": "This provider becomes a TracerProvider from @opentelemetry/sdk-trace, so other modules that type it or check instanceof against BasicTracerProvider from @opentelemetry/sdk-trace-base have to move with it." },
+  { "rule": "public-api", "severity": "todo", "line": 4, "column": 17, "message": "This provider becomes a TracerProvider from @opentelemetry/sdk-trace, so other modules that type it or check instanceof against BasicTracerProvider from @opentelemetry/sdk-trace-base have to move with it." }
 ]

@@ -78,6 +78,8 @@ export interface Discovery {
 }
 
 export const displayPath = (cwd: string, abs: string) => relative(cwd, abs).split(sep).join('/') || '.'
+// A path inside a sentence, so "under ." doesn't end on a double period.
+export const inSentence = (path: string) => (path === '.' ? 'the current directory' : path === '..' ? 'the parent directory' : path)
 
 const hasExtension = (list: readonly string[], path: string) => list.includes(extname(path).toLowerCase())
 export const isCode = (path: string) => hasExtension(CODE_EXTENSIONS, path)

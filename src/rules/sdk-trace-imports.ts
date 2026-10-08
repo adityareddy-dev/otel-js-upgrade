@@ -180,9 +180,9 @@ export const sdkTraceImports: Rule = {
     }
     const edits = renameUses(ctx, renames, 'sdk-trace-imports')
 
-    const moving = providers.flatMap((b) => (b.local !== null && !isKept(ctx, b) ? [b.local] : []))
+    const moving = providers.flatMap((b) => (b.local !== null && !isKept(ctx, b) ? [b] : []))
     if (moving.length > 0) {
-      const names = new Set(moving)
+      const names = new Map(moving.map((b) => [b.local ?? '', b.imported]))
       for (const expr of ctx.tree.findAll({ rule: { kind: 'binary_expression' } })) {
         const right = expr.field('right')
         if (!expr.children().some((c) => !c.isNamed() && c.kind() === 'instanceof')) continue
@@ -194,11 +194,12 @@ export const sdkTraceImports: Rule = {
         const callee = expr.field('constructor')
         if (callee?.kind() !== 'identifier' || !names.has(callee.text())) continue
         const at = exportedProvider(expr, exported)
-        if (at) {
-          ctx.flag('public-api', at, 'This provider has no register() after the move, callers in other modules must switch to the global setters.', {
-            severity: 'todo',
-          })
-        }
+        // BasicTracerProvider never had register(), what changes for its callers is the class.
+        const message =
+          names.get(callee.text()) === 'BasicTracerProvider'
+            ? `This provider becomes a TracerProvider from ${SDK_TRACE}, so other modules that type it or check instanceof against BasicTracerProvider from @opentelemetry/sdk-trace-base have to move with it.`
+            : 'This provider has no register() after the move, callers in other modules must switch to the global setters.'
+        if (at) ctx.flag('public-api', at, message, { severity: 'todo' })
       }
     }
     return edits
