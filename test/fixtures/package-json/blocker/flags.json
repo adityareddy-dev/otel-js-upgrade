@@ -1,0 +1,18 @@
+[
+  {
+    "file": "package.json",
+    "rule": "third-party-blocker",
+    "severity": "note",
+    "line": 4,
+    "column": 5,
+    "message": "@azure/monitor-opentelemetry: as of 1.20.1, known to depend on @opentelemetry/sdk-trace-node ^2.10.0, which installs a second copy of the SDK."
+  },
+  {
+    "file": "package.json",
+    "rule": "third-party-blocker",
+    "severity": "todo",
+    "line": 6,
+    "column": 5,
+    "message": "@vercel/otel: as of 2.1.3, known to peer on @opentelemetry/sdk-trace-base >=2.0.0 <3.0.0 and @opentelemetry/api-logs >=0.200.0 <0.300.0. It has to ship 3.0 support before this project can finish the move. npm install will fail with ERESOLVE until this is resolved."
+  }
+]

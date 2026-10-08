@@ -1,0 +1,18 @@
+[
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "todo",
+    "line": 8,
+    "column": 5,
+    "message": "@opentelemetry/sdk-trace-base stays, since code in this package still imports it. Remove it once that code moves to @opentelemetry/sdk-trace."
+  },
+  {
+    "file": "packages/app/src/index.ts",
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 1,
+    "column": 8,
+    "message": "Namespace import (import * as ns) of @opentelemetry/sdk-trace-base, not rewritten in 0.1.0. Move it by hand."
+  }
+]

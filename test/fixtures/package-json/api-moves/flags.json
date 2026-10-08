@@ -1,0 +1,10 @@
+[
+  {
+    "file": "packages/a/package.json",
+    "rule": "jaeger-propagator",
+    "severity": "todo",
+    "line": 6,
+    "column": 5,
+    "message": "@opentelemetry/propagator-jaeger has no 3.0 release. Remove it once no code uses it. Keeping it pins @opentelemetry/api below 1.10.0, which 3.0's instrumentation and sdk-node need."
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "todo",
+    "line": 1,
+    "column": 1,
+    "message": "package.json not changed (--skip package-json). The code now imports @opentelemetry/resources, @opentelemetry/sdk-trace, which it doesn't declare. Add them by hand."
+  }
+]

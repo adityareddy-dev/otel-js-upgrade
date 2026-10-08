@@ -1,0 +1,42 @@
+[
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "todo",
+    "line": 6,
+    "column": 5,
+    "message": "@opentelemetry/sdk-metrics comes from a pnpm catalog. Set it to 3.0.0 in pnpm-workspace.yaml."
+  },
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "note",
+    "line": 9,
+    "column": 5,
+    "message": "Nested override @opentelemetry/sdk-node names @opentelemetry/* packages and isn't edited. Check it by hand."
+  },
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "note",
+    "line": 17,
+    "column": 5,
+    "message": "This override pins @opentelemetry/resources to 1.13.0, a 1.x version. It stays, check whether it's still needed after the move."
+  },
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "todo",
+    "line": 17,
+    "column": 5,
+    "message": "This package forces @opentelemetry/resources through overrides. Bumping it would push 3.0 under every 2.x dependency in the tree (contrib packages included), which breaks them. Move the overrides by hand once those dependencies ship 3.0 releases."
+  },
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "note",
+    "line": 21,
+    "column": 7,
+    "message": "Override next>@opentelemetry/api applies under one parent only, so it isn't edited. Check it by hand."
+  }
+]

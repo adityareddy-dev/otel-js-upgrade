@@ -1,0 +1,7 @@
+{
+  "name": "stable",
+  "dependencies": {
+    "@opentelemetry/core": "^1.30.0",
+    "@opentelemetry/sdk-trace-base": "^1.30.0"
+  }
+}

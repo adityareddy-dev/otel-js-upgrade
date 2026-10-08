@@ -1,0 +1,10 @@
+{
+  "name": "app",
+  "dependencies": {
+    "@opentelemetry/core": "2.x",
+    "@opentelemetry/resources": ">=2.0.0 <3.0.0",
+    "@opentelemetry/sdk-metrics": "*",
+    "@opentelemetry/exporter-trace-otlp-http": "latest",
+    "@opentelemetry/sdk-node": "workspace:^"
+  }
+}

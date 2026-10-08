@@ -1,0 +1,10 @@
+[
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "todo",
+    "line": 1,
+    "column": 1,
+    "message": "SDK 3.0 is not on npm yet (due 2026-10-15). Run again after the release to update dependencies, or use target 2.12 now."
+  }
+]
