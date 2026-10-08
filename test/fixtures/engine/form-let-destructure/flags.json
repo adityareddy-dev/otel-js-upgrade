@@ -1,0 +1,9 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 1,
+    "column": 5,
+    "message": "Require destructure that is not a top-level const of @opentelemetry/sdk-trace-base, not rewritten in 0.1.0. Move it by hand."
+  }
+]

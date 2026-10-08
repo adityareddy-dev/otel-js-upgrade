@@ -1,6 +1,6 @@
 import type { SgNode } from '@ast-grep/napi'
 
-import { SDK_TRACE, T1, TRACE_SOURCES, traceName } from '../data/names.js'
+import { SDK_TRACE, TRACE_SOURCES, traceName } from '../data/names.js'
 import { TARGETS, type RuleId } from '../data/rules.js'
 import { kindRule } from '../engine/parse.js'
 import type { Binding, Edit, FileContext, Rule } from '../engine/types.js'
@@ -84,7 +84,7 @@ function isExportedStatement(node: SgNode): boolean {
 // Where an exported provider instance or factory shows, or null. The anchor is the exported name.
 function exportedProvider(expr: SgNode, exported: Set<string>): SgNode | null {
   let node = expr
-  while (node.parent()?.kind() === 'parenthesized_expression' || node.parent()?.kind() === 'as_expression') node = node.parent()!
+  for (let p = node.parent(); p && (p.kind() === 'parenthesized_expression' || p.kind() === 'as_expression'); p = p.parent()) node = p
   const parent = node.parent()
   if (!parent) return null
   if (parent.kind() === 'export_statement') return expr
@@ -155,31 +155,29 @@ export const sdkTraceImports: Rule = {
     }
 
     // Two old names that would land on one new name, one as a type and one as a value, both stay.
-    const renamed = old.filter((b) => {
-      if (b.imported === null || b.local !== b.imported || isKept(ctx, b)) return false
+    const renamed: { b: Binding; local: string; to: string }[] = []
+    for (const b of old) {
+      if (b.imported === null || b.local === null || b.local !== b.imported || isKept(ctx, b)) continue
       const entry = traceName(b.module, b.imported)
-      return entry?.module === SDK_TRACE && entry.name !== null && entry.name !== b.imported
-    })
-    const byTarget = new Map<string, Binding[]>()
-    for (const b of renamed) {
-      const to = T1[b.imported!]!.name!
-      byTarget.set(to, [...(byTarget.get(to) ?? []), b])
+      if (entry?.module === SDK_TRACE && entry.name !== null && entry.name !== b.imported) renamed.push({ b, local: b.local, to: entry.name })
     }
+    const byTarget = new Map<string, Binding[]>()
+    for (const { b, to } of renamed) byTarget.set(to, [...(byTarget.get(to) ?? []), b])
     for (const [to, group] of byTarget) {
-      if (new Set(group.map((b) => b.kind)).size < 2) continue
+      const anchor = group.at(-1)
+      if (!anchor || new Set(group.map((b) => b.kind)).size < 2) continue
       const names = [...new Set(group.map((b) => b.imported))].join(' and ')
-      ctx.flag('manual-review', group[1]!, `${names} would both become ${to}, one imported as a type and one as a value, so they were left as they are.`)
+      ctx.flag('manual-review', anchor, `${names} would both become ${to}, one imported as a type and one as a value, so they were left as they are.`)
       group.forEach(keep)
     }
 
     const renames = new Map<string, string>()
-    for (const b of renamed) {
-      if (isKept(ctx, b)) continue
-      renames.set(b.local!, ctx.allocate(SDK_TRACE, T1[b.imported!]!.name!, b.kind))
+    for (const { b, local, to } of renamed) {
+      if (!isKept(ctx, b)) renames.set(local, ctx.allocate(SDK_TRACE, to, b.kind))
     }
     const edits = renameUses(ctx, renames, 'sdk-trace-imports')
 
-    const moving = providers.filter((b) => !isKept(ctx, b) && b.local !== null).map((b) => b.local!)
+    const moving = providers.flatMap((b) => (b.local !== null && !isKept(ctx, b) ? [b.local] : []))
     if (moving.length > 0) {
       const names = new Set(moving)
       for (const expr of ctx.tree.findAll({ rule: { kind: 'binary_expression' } })) {

@@ -1,0 +1,9 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 1,
+    "column": 10,
+    "message": "NodeTracerProvider is declared more than once in this file, so its import from @opentelemetry/sdk-trace-node was left as it is."
+  }
+]
