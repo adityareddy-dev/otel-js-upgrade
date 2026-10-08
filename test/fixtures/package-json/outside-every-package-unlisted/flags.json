@@ -1,0 +1,18 @@
+[
+  {
+    "file": "common/tracing.js",
+    "rule": "package-json-skipped",
+    "severity": "todo",
+    "line": 1,
+    "column": 1,
+    "message": "common/tracing.js is outside every package and now loads @opentelemetry/sdk-trace. No package in this run installs for it, add @opentelemetry/sdk-trace where it's installed from."
+  },
+  {
+    "file": "common/tracing.js",
+    "rule": "public-api",
+    "severity": "todo",
+    "line": 8,
+    "column": 7,
+    "message": "This provider has no register() after the move, callers in other modules must switch to the global setters."
+  }
+]

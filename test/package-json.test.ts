@@ -8,7 +8,7 @@ import { REMOVED } from '../src/data/versions.js'
 import { runFile } from '../src/engine/run.js'
 import type { Flag } from '../src/engine/types.js'
 import { RULES } from '../src/rules/index.js'
-import { liveByPackage, outsideEvery, ownerOf, packagePass, readPackage } from '../src/rules/package-json.js'
+import { installedNowhere, liveByPackage, outsideEvery, ownerOf, packagePass, readPackage } from '../src/rules/package-json.js'
 
 // Project cases: input/ and expected/ trees, flags.json with a file field. expected.2.12/ and flags.2.12.json when 2.12 differs.
 // Code files run through the engine with no passes, so these cases keep their meaning whatever rules are registered.
@@ -60,7 +60,7 @@ async function runProject(input: Tree, target: Target, released: boolean, option
 
   const out: Tree = new Map(input)
   const flags: ExpectedFlag[] = []
-  const files: { path: string; modules: string[] }[] = []
+  const files: { path: string; modules: string[]; before?: string[] }[] = []
   for (const [path, text] of input) {
     if (skip(path) || !scan.some((s) => inside(path, s))) continue
     const owner = ownerOf(path, owners)
@@ -72,7 +72,8 @@ async function runProject(input: Tree, target: Target, released: boolean, option
     if (!CODE.test(path)) continue
     const ranges = owner === undefined ? {} : (facts.get(owner)?.ranges ?? {})
     const result = runFile({ path, text, target, rules: options.every === true ? RULES : [], packageRanges: ranges })
-    files.push({ path, modules: [...result.modules] })
+    const before = result.text !== text ? { before: [...runFile({ path, text, target, rules: [], packageRanges: ranges }).modules] } : {}
+    files.push({ path, modules: [...result.modules], ...before })
     out.set(path, result.text)
     for (const f of result.flags) flags.push({ file: path, rule: f.rule, severity: f.severity, line: f.line, column: f.column, message: f.message, link: f.link })
   }
@@ -80,6 +81,7 @@ async function runProject(input: Tree, target: Target, released: boolean, option
   const texts = considered.map((p) => ({ path: p, text: input.get(p) ?? '' }))
   const live = liveByPackage(texts, files)
   const outside = outsideEvery(texts, files)
+  for (const f of installedNowhere(texts, outside)) flags.push({ file: f.path, rule: f.rule, severity: f.severity, line: f.line, column: f.column, message: f.message, link: f.link })
   for (const path of considered) {
     const result = await packagePass({
       path,

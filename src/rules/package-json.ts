@@ -33,6 +33,8 @@ export interface PackageInput {
 export interface OutsideFile {
   // As the note shows it.
   readonly path: string
+  // What it loaded before the run, set only when the run rewrote it.
+  readonly before?: readonly string[]
   readonly modules: readonly string[]
 }
 
@@ -341,7 +343,11 @@ function passSync(input: PackageInput): PackageResult {
   const own = new Set([...input.live, ...(input.pinned ?? [])])
   // A file outside every package keeps what this package lists and never adds to it.
   const outside = (input.outside ?? []).map((f) => ({ path: f.path, modules: f.modules.filter((m) => facts.declared.has(m)) })).filter((f) => f.modules.length > 0)
-  const live = new Set([...own, ...outside.flatMap((f) => f.modules)])
+  // What the rewrite made it load is added where it was installed from, a package that listed one of its old modules.
+  const gained = (input.outside ?? [])
+    .map((f) => ({ path: f.path, from: (f.before ?? []).filter((m) => facts.declared.has(m)), modules: f.modules.filter((m) => !(f.before ?? f.modules).includes(m)) }))
+    .filter((f) => f.from.length > 0 && f.modules.length > 0)
+  const live = new Set([...own, ...outside.flatMap((f) => f.modules), ...gained.flatMap((f) => f.modules)])
   if (!facts.owner || (facts.entries.length === 0 && facts.overrides.length === 0 && facts.nested.length === 0 && live.size === 0)) {
     return unchanged([])
   }
@@ -616,7 +622,27 @@ function passSync(input: PackageInput): PackageResult {
   if (input.partial || input.skipEdits || (t3 && !input.released)) return unchanged([...reasons, ...info])
 
   const out = applyOps(facts, ops)
-  return { path, text: out, changed: out !== text, flags: sortFlags([...info, ...planned]), refused: null, ...changesOf(facts, analyse(path, out)) }
+  const changes = changesOf(facts, analyse(path, out))
+  for (const f of gained) {
+    const added = f.modules.filter((m) => changes.added[m] !== undefined)
+    const at = facts.entries.filter((e) => f.from.includes(e.name)).sort((a, b) => a.offset - b.offset)[0]
+    if (added.length === 0 || !at) continue
+    const names = andList(added)
+    planned.push(flag('package-json-skipped', at.offset, `${f.path} is outside every package and now loads ${names}, added here since this package listed ${andList(f.from)}`, { severity: 'note' }))
+  }
+  return { path, text: out, changed: out !== text, flags: sortFlags([...info, ...planned]), refused: null, ...changes }
+}
+
+// A shared file the rewrite made load a package, when no package in the run listed anything it loaded before.
+export function installedNowhere(packages: readonly { readonly path: string; readonly text: string }[], files: readonly OutsideFile[]): Flag[] {
+  const declared = new Set(packages.flatMap((p) => [...readPackage(p.path, p.text).declared]))
+  return files.flatMap((f) => {
+    const before = f.before ?? f.modules
+    const names = andList(f.modules.filter((m) => !before.includes(m)))
+    if (names === '' || before.some((m) => declared.has(m))) return []
+    const message = `${f.path} is outside every package and now loads ${names}. No package in this run installs for it, add ${names} where it's installed from.`
+    return [makeFlag(f.path, 'package-json-skipped', { line: 1, column: 1 }, message)]
+  })
 }
 
 const NO_CHANGES = { removed: [], added: {}, bumped: {}, edits: 0 } as const
