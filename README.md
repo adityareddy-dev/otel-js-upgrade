@@ -7,6 +7,8 @@ npx otel-js-upgrade 3
 npx otel-js-upgrade 3 --write
 ```
 
+Until SDK 3.0 is on npm, `3 --write` stops and points you at `2.12 --write`, see Targets.
+
 The default is a dry run. Nothing is written until you say `--write`, and `--write` refuses to run on a dirty git tree unless you add `--allow-dirty`. Every file it changes is parsed again afterwards, and a file that doesn't parse is left exactly as it was and reported with exit code 3.
 
 ## Targets
@@ -30,7 +32,7 @@ Paths default to `.`. `node_modules`, build output and anything git ignores are 
 - `AsyncHooksContextManager` becomes `AsyncLocalStorageContextManager`.
 - package.json, as above.
 
-It handles the import shapes most code uses: `import { A }`, `import type { A }`, `const { A } = require()`, `const { A } = await import()`, `export { A } from`, and side-effect imports. Rewritten declarations stay where they are, with their quotes, semicolons and indentation. New ones are appended after the last import.
+It handles the import shapes most code uses: `import { A }`, `import type { A }`, `const { A } = require()`, `const { A } = await import()`, `export { A } from`, and side-effect imports. Rewritten declarations stay where they are, with their quotes, semicolons and indentation. A new ES import goes after the last OpenTelemetry import, a new require after the first OpenTelemetry require.
 
 ## What it flags
 
@@ -45,11 +47,22 @@ The notes cover a re-export of a renamed name (someone downstream sees the chang
 0.1.0 is small on purpose. These are detected and flagged `manual-review`, so nothing goes quietly, but they aren't rewritten yet:
 
 - Namespace and default imports (`import * as sdk`, `const sdk = require()`), `import x = require()`, `require('m').A` inline, `import().then(...)`, `export *`, and `import('m').A` in a type position.
-- `register()` in a file where every OpenTelemetry module comes in through `await import()`.
-- The `sdk-node` namespaces (`opentelemetry.tracing.X`), the web-common utilities, the removed `core` helpers, the `sdk-logs` type aliases, `HttpInstrumentationConfig.serverName` and the api-logs merge into `@opentelemetry/api`.
-- Merging new names into an import you already have. 0.1.0 appends a declaration instead.
-- Reading `node_modules` for third party packages that pin the 2.x SDK. 0.1.0 checks a built-in list.
+- The `sdk-node` namespaces (`opentelemetry.tracing.X`), the web-common utilities, the removed `core` helpers, and on target `3` the `sdk-logs` type aliases and the api-logs merge into `@opentelemetry/api`.
+
+`register()` in a file where every OpenTelemetry module comes in through `await import()` isn't expanded either, it gets the same todo as any `register()` it couldn't expand.
+
+These aren't looked at yet, nothing flags them:
+
+- Merging new names into an import you already have. 0.1.0 adds a declaration instead.
+- `HttpInstrumentationConfig.serverName`, which 3.0 removed.
 - Node version checks on `engines`, Dockerfiles and `.nvmrc`, the Prometheus exporter's new default host, and the boolean `setGlobalLoggerProvider` return.
+- Reading `node_modules` for third party packages that pin the 2.x SDK. 0.1.0 checks a built-in list instead.
+
+Known limits:
+
+- `new BatchSpanProcessor(exporter, null)` and `new BatchSpanProcessor(exporter, void 0)` are flagged, not rewritten.
+- A `NodeSDK` option written as a computed key (`['spanProcessor']: p`) is left alone.
+- An exported span processor subclass with no constructor, and a re-exported provider class, get a note rather than a todo.
 
 ## Options
 
@@ -75,8 +88,8 @@ Rule ids: `span-processor-options`, `nodesdk-plural-options`, `register`, `sdk-t
 | --- | --- |
 | 0 | The run finished, with or without changes and flags. |
 | 1 | `--check` and at least one change is pending. Flags alone don't set it. |
-| 2 | Usage error, the parser couldn't load, or `--write` refused on a dirty tree. Nothing was written. |
-| 3 | A rewritten file failed the parse check or a rule threw. Those files were not touched. |
+| 2 | Usage error, the parser couldn't load, `3 --write` before SDK 3.0 is on npm, or `--write` refused on a dirty tree. Nothing was written. |
+| 3 | A rewritten file failed the parse check, a rule threw, or a file couldn't be written. Those files were left as they were and the rest were processed. A package.json is written last, and only when every file under it was, otherwise it stays as it was with a todo. |
 
 ## Node
 
