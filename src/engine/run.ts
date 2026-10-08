@@ -18,16 +18,17 @@ const OTEL = '@opentelemetry/'
 // A file with only the last two is parsed for the register-unresolved and sdk-1x heuristics alone.
 const PREFILTER = [OTEL, '.register(', '.addSpanProcessor(']
 const GENERATED = /@generated|DO NOT EDIT/
-const MODULE_TEXT = /['"`](@opentelemetry\/[^'"`\s]+)['"`]/g
+const MODULE_TEXT = /['"`](@opentelemetry\/[\w./-]+)['"`]/g
 
 // @opentelemetry/x/build/src/y keeps @opentelemetry/x live.
 const packageOf = (module: string) => module.split('/').slice(0, 2).join('/')
 const packages = (modules: Iterable<string>) => [...new Set([...modules].map(packageOf))].sort()
 
-const modulesIn = (bindings: readonly Binding[]) => packages(bindings.filter((b) => b.form !== 'non-literal').map((b) => b.module))
-
-// Every quoted @opentelemetry/ specifier, for files whose tree can't be trusted.
+// Every quoted @opentelemetry/ name in the text, comments included: a config string or a JSDoc import() keeps its package too.
 const modulesInText = (text: string) => packages([...text.matchAll(MODULE_TEXT)].map((m) => m[1]!))
+
+const modulesIn = (bindings: readonly Binding[], text: string) =>
+  packages([...bindings.filter((b) => b.form !== 'non-literal').map((b) => b.module), ...modulesInText(text)])
 
 const byPosition = (a: Flag, b: Flag) => a.line - b.line || a.column - b.column || a.rule.localeCompare(b.rule)
 
@@ -134,7 +135,7 @@ export function runFile(input: RunInput): FileResult {
       return done({ ...unchanged, status: 'error', reason: `rule ${rule.id} threw: ${message}, file not touched`, modules: modulesInText(text) })
     }
     if (ctx.skipped !== null) {
-      return done({ ...unchanged, status: 'skipped', reason: ctx.skipped, flags: finish(), modules: modulesIn(ctx.original.bindings) })
+      return done({ ...unchanged, status: 'skipped', reason: ctx.skipped, flags: finish(), modules: modulesIn(ctx.original.bindings, text) })
     }
     if (edits.length === 0) continue
     if (brokenAt(ctx.tree)) {
@@ -142,7 +143,7 @@ export function runFile(input: RunInput): FileResult {
         ...unchanged,
         status: 'error',
         reason: `internal: rewritten file did not parse after ${rule.id}, not written`,
-        modules: modulesIn(ctx.original.bindings),
+        modules: modulesIn(ctx.original.bindings, text),
       })
     }
     for (const edit of edits) {
@@ -158,7 +159,7 @@ export function runFile(input: RunInput): FileResult {
     flags: finish(),
     rules: RULE_IDS.filter((id) => touched.has(id)),
     edits: changed ? ctx.edits : 0,
-    modules: modulesIn(ctx.bindings),
+    modules: modulesIn(ctx.bindings, ctx.text),
   })
 }
 
