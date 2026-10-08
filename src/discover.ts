@@ -156,7 +156,7 @@ export async function discover(cwd: string, paths: readonly string[], ignore: re
       cwd: dir,
       absolute: true,
       dot: true,
-      followSymbolicLinks: false,
+      followSymbolicLinks: true,
       ignore: [...(gitSet === null ? IGNORE_OUTSIDE_GIT : IGNORE), ...ignore],
     })
     for (const f of found.map((p) => resolve(p)).sort()) add(f, gitSet)
