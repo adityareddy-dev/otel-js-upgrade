@@ -32,6 +32,10 @@ try {
     s.filesScanned === 1 ? null : `filesScanned ${s.filesScanned}`,
     s.packages === 1 ? null : `packages ${s.packages}`,
     s.errors === 0 ? null : `errors ${s.errors}`,
+    // A real file converts: the source and the package.json both change.
+    s.filesChanged === 2 ? null : `filesChanged ${s.filesChanged}`,
+    report.files?.[0]?.rules?.includes('register') ? null : `rules ${JSON.stringify(report.files?.[0]?.rules)}`,
+    report.packages?.[0]?.added?.['@opentelemetry/sdk-trace'] === '^2.12.0' ? null : 'package.json without @opentelemetry/sdk-trace',
   ].filter(Boolean)
   console.log(`smoke on Node ${process.version} ${process.platform}: ${JSON.stringify(s)}`)
   if (problems.length > 0) throw new Error(`smoke failed: ${problems.join(', ')}\n${r.stderr}`)

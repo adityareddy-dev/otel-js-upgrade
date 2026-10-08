@@ -27,14 +27,25 @@ test('the packed bin runs a fixture project: text report, exit 0', () => {
   const r = bin('2.12', project)
   expect(r.status, r.stderr).toBe(0)
   expect(r.stdout.split('\n')[0]).toBe('otel-js-upgrade 0.1.0, target 2.12, dry run (nothing written)')
-  expect(r.stdout).toMatch(/Scanned 1 file in 1 package\.\n/)
+  expect(r.stdout).toMatch(/\n2 files would change \(\d+ edits\)\. .* Scanned 1 file in 1 package\.\n/)
 }, 240_000)
 
 test('the packed bin prints one JSON document with schema 1', () => {
   const r = bin('2.12', project, '--json')
   expect(r.status, r.stderr).toBe(0)
-  const doc = JSON.parse(r.stdout) as { schema: number; exitCode: number; summary: { filesScanned: number; packages: number; errors: number } }
+  const doc = JSON.parse(r.stdout) as {
+    schema: number
+    exitCode: number
+    summary: { filesScanned: number; packages: number; errors: number }
+    files: { status: string; rules?: string[] }[]
+    packages: { removed: string[]; added: Record<string, string> }[]
+  }
   expect(doc.schema).toBe(1)
   expect(doc.exitCode).toBe(0)
-  expect(doc.summary).toMatchObject({ filesScanned: 1, packages: 1, errors: 0 })
+  expect(doc.summary).toMatchObject({ filesScanned: 1, packages: 1, filesChanged: 2, errors: 0 })
+  expect(doc.files[0]).toMatchObject({ status: 'changed', rules: expect.arrayContaining(['register', 'sdk-trace-imports']) })
+  expect(doc.packages[0]).toMatchObject({
+    removed: ['@opentelemetry/sdk-trace-node'],
+    added: expect.objectContaining({ '@opentelemetry/sdk-trace': '^2.12.0' }),
+  })
 }, 240_000)
