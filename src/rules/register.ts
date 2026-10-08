@@ -406,7 +406,10 @@ function heuristicFlag(ctx: FileContext, call: SgNode, receiver: SgNode) {
   const text = short(receiver)
   // A name declared here was built from a form this version doesn't follow, or is bound more than once.
   const name = { kind: 'identifier', regex: `^${receiver.text().replace(/\$/g, '\\$')}$` }
-  const declares = [{ kind: 'variable_declarator', has: { field: 'name', ...name } }, { kind: 'required_parameter', has: { field: 'pattern', ...name } }]
+  // The JS grammar has no required_parameter, its parameters sit straight under formal_parameters.
+  const typed = kindRule(ctx.lang, ['required_parameter']).rule.any.length > 0
+  const param = typed ? { kind: 'required_parameter', has: { field: 'pattern', ...name } } : { ...name, inside: { kind: 'formal_parameters' } }
+  const declares = [{ kind: 'variable_declarator', has: { field: 'name', ...name } }, param]
   const here = receiver.kind() === 'identifier' && ctx.tree.find({ rule: { any: declares } }) !== null
   const why = here ? `this tool couldn't tie ${text} to one new NodeTracerProvider or new WebTracerProvider imported by name` : "this file doesn't create it"
   ctx.flag(
