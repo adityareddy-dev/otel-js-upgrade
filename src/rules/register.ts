@@ -97,10 +97,50 @@ function factory(ctx: FileContext, name: string): Platform | 'basic' | 'other' {
 
 type Receiver = { readonly provider: false } | { readonly provider: true; readonly platform: Platform | null; readonly problem: string | null }
 
+// A parameter named this, and the provider its type names, if any.
+function parameterOf(ctx: FileContext, name: string): { readonly platform: Platform | 'basic' | null; readonly typed: boolean } | null {
+  if (!ctx.declaredOnce(name)) return null
+  for (const id of ctx.tree.findAll({ rule: { kind: 'identifier', regex: `^${name.replace(/\$/g, '\\$')}$` } })) {
+    const p = id.parent()
+    const kind = String(p?.kind())
+    let param: SgNode | null = null
+    if (kind === 'formal_parameters') param = id
+    else if ((kind === 'required_parameter' || kind === 'optional_parameter') && same(p!.field('pattern'), id)) param = p
+    else if (kind === 'assignment_pattern' && same(p!.field('left'), id) && p!.parent()?.kind() === 'formal_parameters') param = id
+    else if (kind === 'arrow_function' && same(p!.field('parameter'), id)) param = id
+    if (!param) continue
+    const type = param.field('type')
+    if (!type) return { platform: null, typed: false }
+    for (const t of type.findAll({ rule: { kind: 'type_identifier' } })) {
+      const platform = providerOf(ctx.resolve(t.text()))
+      if (platform) return { platform, typed: true }
+    }
+    return { platform: null, typed: true }
+  }
+  return null
+}
+
+// A provider made somewhere inside a value, behind a cast, a condition or a default.
+function holdsProvider(ctx: FileContext, value: SgNode | null, depth = 0): boolean {
+  if (!value) return false
+  if (value.kind() === 'identifier' && depth < 3) {
+    const declarator = declaratorOf(ctx, value.text())
+    if (declarator && holdsProvider(ctx, declarator.field('value'), depth + 1)) return true
+  }
+  return value.findAll({ rule: { kind: 'new_expression' } }).some((n) => built(ctx, n) !== 'other')
+}
+
 // Whether a receiver name is a provider this file builds, and of which platform.
 function receiverOf(ctx: FileContext, name: string): Receiver {
   const declarator = declaratorOf(ctx, name)
-  if (!declarator) return { provider: false }
+  if (!declarator) {
+    // A parameter can't be followed. One typed as a provider, or an untyped one in a file that makes providers, is flagged.
+    const param = parameterOf(ctx, name)
+    const makes = ctx.bindings.some((b) => providerOf(b) !== undefined)
+    if (!param || !(param.platform !== null || (!param.typed && makes))) return { provider: false }
+    const platform = param.platform === 'node' || param.platform === 'web' ? param.platform : null
+    return { provider: true, platform, problem: `${name} is a parameter, so this tool can't see which provider it gets and register() was not expanded. ${BY_HAND}` }
+  }
   const values: (SgNode | null)[] = []
   const init = declarator.field('value')
   if (init) values.push(init)
@@ -113,7 +153,10 @@ function receiverOf(ctx: FileContext, name: string): Receiver {
     return built(ctx, v)
   })
   const providers = kinds.filter((k): k is Platform | 'basic' => k !== 'other')
-  if (providers.length === 0) return { provider: false }
+  if (providers.length === 0) {
+    if (!values.some((v) => holdsProvider(ctx, v))) return { provider: false }
+    return { provider: true, platform: null, problem: `${name} is given a provider through an expression this tool doesn't follow, so register() was not expanded. ${BY_HAND}` }
+  }
   const platforms = [...new Set(providers)]
   const platform = platforms.length === 1 && platforms[0] !== 'basic' ? (platforms[0] as Platform) : null
   if (kinds.includes('other')) {
@@ -438,6 +481,12 @@ function run(ctx: FileContext): Edit[] {
         const platform = held === 'node' || held === 'web' ? held : null
         fail(call, platform, `register() is called through ${text}, and this tool doesn't follow members, so it was not expanded. ${BY_HAND}`)
       }
+      continue
+    }
+    const maker = receiver.kind() === 'call_expression' ? receiver.field('function') : null
+    const made = maker?.kind() === 'identifier' ? factory(ctx, maker.text()) : 'other'
+    if (made !== 'other') {
+      fail(call ?? m, made === 'basic' ? null : made, `register() is called on a provider that is never stored, so it was not expanded. Keep the provider in a const and run the codemod again, or ${BY_HAND.charAt(0).toLowerCase()}${BY_HAND.slice(1)}`)
       continue
     }
     const r = receiver.kind() === 'identifier' ? receiverOf(ctx, receiver.text()) : ({ provider: false } as const)
