@@ -178,9 +178,9 @@ test('--write: one line per file, the package.json counted as a file, the instal
   expect(readFileSync(join(dir, 'package.json'), 'utf8')).toContain('"@opentelemetry/sdk-trace": "^2.12.0"')
 })
 
-test('--write is refused on uncommitted changes, and --allow-dirty lets it run', async () => {
+test('--write is refused on uncommitted changes, and --allow-dirty lets it run', async (ctx) => {
   const dir = project({ 'package.json': PKG, 'src/tracing.ts': SOURCE })
-  if (spawnSync('git', ['init', '-q'], { cwd: dir }).error) return
+  if (spawnSync('git', ['init', '-q'], { cwd: dir }).error) return ctx.skip()
   const r = await run({ target: '3', cwd: dir, mode: 'write' })
   expect(r.exitCode).toBe(2)
   expect(r.report).toMatchObject({ schema: 1, exitCode: 2, error: expect.stringContaining('uncommitted changes under .') })

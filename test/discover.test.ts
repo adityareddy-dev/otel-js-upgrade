@@ -46,10 +46,10 @@ test('outside git: tinyglobby with the long ignore list', async () => {
   expect(paths(d.text)).toEqual(['.env', '.github/workflows/ci.yml', 'docker-compose.yml'])
 })
 
-test('inside git: code from ls-files, .env still text-scanned, .cache no longer ignored', async () => {
+test('inside git: code from ls-files, .env still text-scanned, .cache no longer ignored', async (ctx) => {
   const dir = tree()
   const git = spawnSync('git', ['init', '-q'], { cwd: dir })
-  if (git.error) return
+  if (git.error) return ctx.skip()
   const d = await discover(dir, ['.'], [])
   expect(paths(d.code)).toEqual(['.cache/z.ts', 'src/a.ts', 'src/b.d.ts'])
   expect(paths(d.text)).toEqual(['.env', '.github/workflows/ci.yml', 'docker-compose.yml'])
@@ -71,7 +71,7 @@ test('a file path is scanned as itself, even where an ignore would drop it', asy
   expect(d.dirs).toEqual([])
 })
 
-test('a symlink to a file outside the scanned paths is skipped, one inside is deduped', async () => {
+test('a symlink to a file outside the scanned paths is skipped, one inside is deduped', async (ctx) => {
   const outside = project({ 'out.ts': "import '@opentelemetry/api'\n" })
   const dir = project({ 'src/a.ts': 'x\n' })
   try {
@@ -79,7 +79,7 @@ test('a symlink to a file outside the scanned paths is skipped, one inside is de
     symlinkSync(join(dir, 'src/a.ts'), join(dir, 'src/again.ts'), 'file')
   } catch {
     // Symlinks need developer mode on Windows.
-    return
+    return ctx.skip()
   }
   const d = await discover(dir, ['.'], [])
   expect(paths(d.code)).toEqual(['src/a.ts'])

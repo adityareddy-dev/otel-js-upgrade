@@ -20,8 +20,8 @@ import { textFlags } from './scan/text.js'
 export type { FlagId, RuleId, Severity, Target } from './data/rules.js'
 export type { Flag } from './engine/types.js'
 
-export const TOOL = 'otel-js-upgrade'
-export const VERSION = (createRequire(import.meta.url)('../package.json') as { version: string }).version
+const TOOL = 'otel-js-upgrade'
+const VERSION = (createRequire(import.meta.url)('../package.json') as { version: string }).version
 
 export type Mode = 'dry-run' | 'write' | 'check'
 
@@ -544,7 +544,8 @@ export async function run(options: RunOptions): Promise<RunResult> {
       mode,
       summary,
       files,
-      flags: allFlags,
+      // Only the seven documented fields, whatever a pass put on its flags.
+      flags: allFlags.map(({ rule, severity, path, line, column, message, link }) => ({ rule, severity, path, line, column, message, link })),
       packages: reportPackages,
       exitCode,
     },
