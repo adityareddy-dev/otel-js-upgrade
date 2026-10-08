@@ -1,0 +1,10 @@
+[
+  {
+    "rule": "public-api",
+    "severity": "todo",
+    "line": 3,
+    "column": 17,
+    "message": "This provider has no register() after the move, callers in other modules must switch to the global setters."
+  },
+  { "rule": "public-api", "severity": "todo", "line": 8, "column": 14 }
+]
