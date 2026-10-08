@@ -120,7 +120,10 @@ function fromRequire(call: SgNode, module: string): Entry[] {
       return [{ form: 'require-namespace', module, node: name, declaration, local: name.text() }]
     }
     if (name.kind() !== 'object_pattern') return [{ form: 'pattern', module, node: name, declaration }]
-    if (parent.parent()?.parent()?.kind() !== 'program') return [{ form: 'nested-require', module, node: name, declaration }]
+    const statement = parent.parent()
+    if (statement?.parent()?.kind() !== 'program' || statement.field('kind')?.text() !== 'const') {
+      return [{ form: 'nested-require', module, node: name, declaration }]
+    }
     return destructure(parent, module, 'cjs-destructure', null)
   }
   if (parent.kind() === 'member_expression' && parent.field('object')?.id() === call.id()) {

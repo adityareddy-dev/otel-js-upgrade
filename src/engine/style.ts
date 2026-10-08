@@ -75,9 +75,23 @@ function detectIndent(text: string, root: SgNode): string {
   return ' '.repeat(best)
 }
 
+function majorityEol(text: string): '\n' | '\r\n' {
+  const all = text.split('\n').length - 1
+  const crlf = text.split('\r\n').length - 1
+  return crlf > all - crlf ? '\r\n' : '\n'
+}
+
+// The ending of the line an insertion at index follows, or the fallback on a last line with none.
+export function eolAt(text: string, index: number, fallback: '\n' | '\r\n'): '\n' | '\r\n' {
+  if (index > 0 && text[index - 1] === '\n') return text[index - 2] === '\r' ? '\r\n' : '\n'
+  const next = text.indexOf('\n', index)
+  if (next === -1) return fallback
+  return text[next - 1] === '\r' ? '\r\n' : '\n'
+}
+
 export function detectStyle(text: string, root: SgNode): Style {
   return {
-    eol: text.includes('\r\n') ? '\r\n' : '\n',
+    eol: majorityEol(text),
     quote: detectQuote(root),
     semi: detectSemi(root),
     indent: detectIndent(text, root),

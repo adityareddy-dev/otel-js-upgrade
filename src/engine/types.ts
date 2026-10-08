@@ -10,11 +10,19 @@ A rule returns edits against ctx.text, { start, end, text }, with UTF-16 offsets
 node.range().start.index and .end.index. Edits from one rule must not overlap. The engine applies
 them, parses again, and makes the file an error if the result doesn't parse. A rule that can't do
 the whole job for a file returns no edits and raises manual-review instead of half a migration.
+A kind matcher naming a TypeScript-only kind throws on a JavaScript tree, so a rule that needs
+one builds the matcher with kindRule(ctx.lang, kinds) from parse.ts. Line breaks in inserted
+text come from ctx.eolAt(offset), never a bare '\n'.
 
 Body rules never edit an import, require or export-from declaration. What they need on the import
 side goes into ctx.importPlan: names to drop from an old binding, names that must stay on their
 old module, and names to add from a module. The imports rule is the only pass that edits
-declarations, and it marks its edits with the rule whose names it moved.
+declarations, and it marks its edits with the rule whose names it moved. A rule that leaves a use
+of an old binding as it is, with a manual-review or register-unresolved on it, pushes that binding
+to ctx.importPlan.keep, so its declaration stays on the old module. Before any rule runs, the
+engine has already flagged and kept the bindings 0.1.0 leaves alone: forms it doesn't rewrite,
+names a 0.2 rule handles, and names declared more than once. A file that only has .register( or
+.addSpanProcessor( and no @opentelemetry/ runs the 'flags' pass alone.
 
 New local names come from ctx.allocate(module, name, kind), never typed by hand. It reuses a
 top-level binding that is declared once in the file, otherwise picks a name nothing in the file
@@ -80,7 +88,7 @@ export const UNSUPPORTED_FORMS = {
   'require-namespace': 'require namespace (const ns = require())',
   'require-member': 'require member (const A = require().A)',
   'inline-require': 'inline require (require().A)',
-  'nested-require': 'require destructure that is not a top-level declaration',
+  'nested-require': 'require destructure that is not a top-level const',
   'dynamic-namespace': 'dynamic namespace (const ns = await import())',
   'dynamic-then': 'dynamic import with .then()',
   'dynamic-import': 'dynamic import in an expression',
@@ -153,6 +161,8 @@ export interface FileContext {
   // The owning package's declared @opentelemetry/* ranges, every section but overrides. Empty when unknown.
   readonly packageRanges: Readonly<Record<string, string>>
   readonly original: { readonly text: string; readonly bindings: readonly Binding[] }
+  // Every @opentelemetry/ module comes in through import(), so a static import must not be added.
+  readonly lazy: boolean
   readonly text: string
   readonly tree: SgNode
   readonly bindings: readonly Binding[]
@@ -169,6 +179,8 @@ export interface FileContext {
   member(object: string, property: string): Member | undefined
   declaredOnce(name: string): boolean
   allocate(module: string, name: string, kind: ImportKind): string
+  // The line ending for a line break inserted at this offset into ctx.text.
+  eolAt(index: number): Style['eol']
   // Leaves the file as it was, reported skipped. Flags raised so far stay.
   skip(reason: string): void
 }
@@ -189,6 +201,6 @@ export interface FileResult {
   readonly rules: readonly RuleId[]
   readonly edits: number
   readonly reason?: string
-  // @opentelemetry/* modules the file imports after the run, in any form. The original's when nothing was written.
+  // @opentelemetry/* packages the file loads after the run, in any form. The original's when nothing was written.
   readonly modules: readonly string[]
 }

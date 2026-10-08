@@ -5,12 +5,23 @@ import { API, API_DEFAULT_MEMBERS, type ImportKind } from '../data/names.js'
 import { FLAGS, type FlagId, type Severity, type Target } from '../data/rules.js'
 import { bindingsOf, declarationCounts, usedNames } from './bindings.js'
 import { parseAs } from './parse.js'
+import { eolAt } from './style.js'
 import { offsetBefore, sortEdits, splice } from './splice.js'
 import type { Binding, Edit, FileContext, Flag, ImportPlan, Member, Position, Style } from './types.js'
 
 // In 0.1.0 the api default import never hands out logs, which exists from api 1.10.0 only.
 const API_DEFAULT_REUSE = new Set<string>(API_DEFAULT_MEMBERS.filter((name) => name !== 'logs'))
 const NAMESPACE_FORMS = new Set(['namespace', 'import-equals', 'require-namespace'])
+const NOT_STATIC = new Set([
+  'dynamic-destructure',
+  'dynamic-namespace',
+  'dynamic-then',
+  'dynamic-import',
+  'type-import',
+  'typeof-import',
+  'non-literal',
+  'declare-module',
+])
 
 export interface Engine extends FileContext {
   readonly edits: number
@@ -74,6 +85,9 @@ export function createContext(input: ContextInput): Engine {
   const originalBindings = bindings
 
   const declaredOnce = (name: string) => counts.get(name) === 1
+  const lazy =
+    originalBindings.length > 0 &&
+    !originalBindings.some((b) => !NOT_STATIC.has(b.form) && b.declaration.parent()?.kind() === 'program')
 
   const resolve = (name: string): Binding | undefined => {
     if (!declaredOnce(name)) return undefined
@@ -144,6 +158,7 @@ export function createContext(input: ContextInput): Engine {
     lang: input.lang,
     style: input.style,
     packageRanges: input.packageRanges ?? {},
+    lazy,
     original: { text: original, bindings: originalBindings },
     get text() {
       return text
@@ -161,6 +176,7 @@ export function createContext(input: ContextInput): Engine {
     member,
     declaredOnce,
     allocate,
+    eolAt: (index) => eolAt(text, index, input.style.eol),
     skip(reason) {
       skipped = reason
     },

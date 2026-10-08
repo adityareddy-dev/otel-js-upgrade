@@ -11,13 +11,24 @@ export function langFor(path: string): Lang | null {
   return null
 }
 
-// An ERROR node, or a zero-width leaf, which is how the parser marks a token it had to make up.
+const LISTS = ['object', 'object_pattern', 'arguments', 'formal_parameters', 'named_imports', 'export_clause']
+
+// An ERROR node, a zero-width leaf (a token the parser made up), or a stray comma the grammar lets through.
 export function brokenAt(root: SgNode): SgNode | null {
   const error = root.find({ rule: { kind: 'ERROR' } })
   if (error) return error
   for (const node of root.findAll({ rule: { regex: '^$' } })) {
     const { start, end } = node.range()
     if (node.isLeaf() && start.index === end.index && node.kind() !== 'program') return node
+  }
+  for (const list of root.findAll({ rule: { any: LISTS.map((kind) => ({ kind })) } })) {
+    let previous = ''
+    for (const child of list.children()) {
+      const kind = String(child.kind())
+      if (kind === 'comment') continue
+      if (kind === ',' && (previous === '(' || previous === '{' || previous === ',')) return child
+      previous = kind
+    }
   }
   return null
 }

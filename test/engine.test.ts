@@ -7,7 +7,8 @@ import { runFile } from '../src/engine/run.js'
 import { brokenAt, parseAs, parseFile } from '../src/engine/parse.js'
 import { offsetBefore, splice } from '../src/engine/splice.js'
 import { detectStyle } from '../src/engine/style.js'
-import type { Binding, Rule } from '../src/engine/types.js'
+import type { Target } from '../src/data/rules.js'
+import type { Binding, ImportPlan, Rule } from '../src/engine/types.js'
 
 function context(path: string, text: string) {
   const parsed = parseFile(path, text)!
@@ -99,6 +100,16 @@ describe('style', () => {
     const text = 'a();\nb();\nc()\nfunction f() {}\n'
     expect(detectStyle(text, parseAs(Lang.TypeScript, text)).semi).toBe(true)
   })
+
+  test('the line ending is the majority, an insertion takes the ending of the line it follows', () => {
+    const text = "import 'a'\nimport 'b'\r\nimport 'c'\nx"
+    expect(detectStyle(text, parseAs(Lang.TypeScript, text)).eol).toBe('\n')
+    const ctx = context('a.ts', text)
+    expect(ctx.eolAt(text.indexOf("import 'c'"))).toBe('\r\n')
+    expect(ctx.eolAt(text.indexOf("'b'"))).toBe('\r\n')
+    expect(ctx.eolAt(text.indexOf("'a'"))).toBe('\n')
+    expect(ctx.eolAt(text.length)).toBe('\n')
+  })
 })
 
 describe('broken trees', () => {
@@ -111,6 +122,16 @@ describe('broken trees', () => {
   test('a missing brace and a bad splice are caught', () => {
     expect(brokenAt(parseAs(Lang.TypeScript, 'function f() { return 1'))).not.toBeNull()
     expect(brokenAt(parseAs(Lang.TypeScript, 'new BatchSpanProcessor({ exporter: e, maxQueueSize: 1 );'))).not.toBeNull()
+  })
+
+  test('stray commas the grammar lets through are caught, holes and trailing commas are not', () => {
+    for (const src of ['foo(, a)', 'foo(a,, b)', 'foo(/* c */, a)', 'const o = { a,, b }', 'const {, a } = o', "import { , A } from 'x'"]) {
+      expect(brokenAt(parseAs(Lang.TypeScript, src)), src).not.toBeNull()
+      expect(brokenAt(parseAs(Lang.JavaScript, src)), src).not.toBeNull()
+    }
+    for (const src of ['[1,,2]', 'const [, a] = x', 'foo(a, b,)', 'const o = { a, b, }', "import { A, } from 'x'", 'function f(a, b,) {}']) {
+      expect(brokenAt(parseAs(Lang.TypeScript, src)), src).toBeNull()
+    }
   })
 
   test('valid shapes without semicolons are not broken', () => {
@@ -129,6 +150,9 @@ describe('broken trees', () => {
     const r = runFile({ path: 'a.ts', text: "import { A } from '@opentelemetry/sdk-trace-base'\nfoo(a, b;\n", target: '3', rules: [] })
     expect(r.status).toBe('skipped')
     expect(r.flags.map((f) => [f.rule, f.line, f.column])).toEqual([['manual-review', 2, 9]])
+    expect(r.flags[0]!.message).toBe(
+      `The parser can't read ";\\n" at 2:9, the file may be valid TypeScript. Migrate it by hand or pass --ignore.`,
+    )
     expect(r.modules).toEqual(['@opentelemetry/sdk-trace-base'])
   })
 })
@@ -251,6 +275,22 @@ describe('binding table', () => {
     ])
   })
 
+  test('a CJS destructure is rewritten only as a top-level const', () => {
+    const text = [
+      "const { A } = require('@opentelemetry/sdk-trace-base')",
+      "let { B } = require('@opentelemetry/sdk-trace-base')",
+      "var { C } = require('@opentelemetry/sdk-trace-base')",
+      "export const { D } = require('@opentelemetry/sdk-trace-base')",
+      '',
+    ].join('\n')
+    expect(context('a.js', text).bindings.map((b) => [b.form, b.imported])).toEqual([
+      ['cjs-destructure', 'A'],
+      ['nested-require', null],
+      ['nested-require', null],
+      ['nested-require', null],
+    ])
+  })
+
   test('unsupported forms of moved modules get a manual-review naming the form, others stay quiet', () => {
     const text = [
       "import * as base from '@opentelemetry/sdk-trace-base'",
@@ -264,7 +304,9 @@ describe('binding table', () => {
       ['manual-review', 1, 8],
       ['manual-review', 3, 8],
     ])
-    expect(r.flags[0]!.message).toContain('namespace import (import * as ns) of @opentelemetry/sdk-trace-base')
+    expect(r.flags[0]!.message).toBe(
+      'Namespace import (import * as ns) of @opentelemetry/sdk-trace-base, not rewritten in 0.1.0. Move it by hand.',
+    )
     expect(r.flags[1]!.message).toContain('Default import of @opentelemetry/sdk-node')
     expect(r.status).toBe('unchanged')
     expect(r.modules).toEqual([
@@ -431,9 +473,32 @@ describe('flags and ignores', () => {
     expect(r).toMatchObject({ status: 'skipped', text: ignored, flags: [], modules: ['@opentelemetry/sdk-trace-node'] })
   })
 
-  test('a file without @opentelemetry/ is never parsed', () => {
+  test('ignore-file wins over a parse error, generated files are skipped', () => {
+    const broken = "// otel-js-upgrade-ignore-file\nimport { A } from '@opentelemetry/sdk-trace-base'\nfoo(a, b;\n"
+    expect(runFile({ path: 'a.ts', text: broken, target: '3', rules: [] })).toMatchObject({ status: 'skipped', flags: [] })
+    const generated = `/* eslint-disable */\n// This file is @generated, DO NOT EDIT\n${text}`
+    expect(runFile({ path: 'a.ts', text: generated, target: '3', rules: [insertAbove] })).toMatchObject({
+      status: 'skipped',
+      reason: 'generated',
+      modules: ['@opentelemetry/sdk-trace-node'],
+    })
+  })
+
+  test('a file with no @opentelemetry/, .register( or .addSpanProcessor( is never parsed', () => {
     const r = runFile({ path: 'a.ts', text: 'foo(a, b;', target: '3', rules: [insertAbove] })
     expect(r.status).toBe('unchanged')
+  })
+
+  test('a file with only .register( runs the flags pass alone, and a parse error there stays quiet', () => {
+    const seen: string[] = []
+    const flags: Rule = { id: 'flags', targets: ['3', '2.12'], run: () => (seen.push('flags'), []) }
+    const imports: Rule = { id: 'imports', targets: ['3', '2.12'], run: () => (seen.push('imports'), []) }
+    const r = runFile({ path: 'a.js', text: 'myProvider.register()\n', target: '3', rules: [flags, insertAbove, imports] })
+    expect([r.status, seen]).toEqual(['unchanged', ['flags']])
+    expect(runFile({ path: 'a.js', text: 'p.register(a, b;\n', target: '3', rules: [flags] })).toMatchObject({
+      status: 'unchanged',
+      flags: [],
+    })
   })
 
   test('a rule that throws makes the file an error and nothing is written', () => {
@@ -467,5 +532,92 @@ describe('flags and ignores', () => {
     const r = runFile({ path: 'a.ts', text, target: '3', rules: [skipper, insertAbove] })
     expect(r).toMatchObject({ status: 'skipped', reason: '1.x code', text })
     expect(r.flags.map((f) => f.rule)).toEqual(['sdk-1x'])
+  })
+})
+
+describe('pass A', () => {
+  const run = (text: string, target: Target = '3') => {
+    let plan: ImportPlan | undefined
+    const spy: Rule = { id: 'flags', targets: ['3', '2.12'], run: (ctx) => ((plan = ctx.importPlan), []) }
+    const r = runFile({ path: 'a.ts', text, target, rules: [spy] })
+    return { flags: r.flags.map((f) => [f.line, f.message]), keep: plan?.keep, modules: r.modules }
+  }
+
+  test('names a 0.2 rule handles are flagged and stay on their module', () => {
+    const text = [
+      "import { WebTracerProvider, getResource } from '@opentelemetry/sdk-trace-web'",
+      "import { tracing, NodeSDK } from '@opentelemetry/sdk-node'",
+      "import { hrTime, getTimeOrigin } from '@opentelemetry/core'",
+      "import { logs } from '@opentelemetry/api-logs'",
+      "import type { SdkLogRecord } from '@opentelemetry/sdk-logs'",
+      '',
+    ].join('\n')
+    const three = run(text)
+    expect(three.flags).toEqual([
+      [1, 'getResource from @opentelemetry/sdk-trace-web is not rewritten in 0.1.0. Move it by hand.'],
+      [2, 'tracing from @opentelemetry/sdk-node is not rewritten in 0.1.0. Move it by hand.'],
+      [3, 'getTimeOrigin from @opentelemetry/core is not rewritten in 0.1.0. Move it by hand.'],
+      [4, 'logs from @opentelemetry/api-logs is not rewritten in 0.1.0. Move it by hand.'],
+      [5, 'SdkLogRecord from @opentelemetry/sdk-logs is not rewritten in 0.1.0. Move it by hand.'],
+    ])
+    expect(three.keep).toEqual([
+      { module: '@opentelemetry/sdk-trace-web', local: 'getResource' },
+      { module: '@opentelemetry/sdk-node', local: 'tracing' },
+      { module: '@opentelemetry/core', local: 'getTimeOrigin' },
+      { module: '@opentelemetry/api-logs', local: 'logs' },
+      { module: '@opentelemetry/sdk-logs', local: 'SdkLogRecord' },
+    ])
+    expect(run(text, '2.12').flags.map(([line]) => line)).toEqual([1, 2, 3])
+  })
+
+  test('a namespace of a module that keeps most names is flagged only when it reaches a moved one', () => {
+    const text = [
+      "import * as core from '@opentelemetry/core'",
+      "const sdk = require('@opentelemetry/sdk-node')",
+      "import * as hooks from '@opentelemetry/context-async-hooks'",
+      'core.hrTime()',
+      'new sdk.NodeSDK({ node: 1 })',
+      'new hooks.AsyncLocalStorageContextManager()',
+      '',
+    ].join('\n')
+    expect(run(text).flags).toEqual([])
+    const reaching = text
+      .replace('core.hrTime()', 'core.getTimeOrigin()')
+      .replace('sdk.NodeSDK', 'sdk.tracing.BatchSpanProcessor')
+      .replace('AsyncLocalStorageContextManager', 'AsyncHooksContextManager')
+    expect(run(reaching).flags.map(([line]) => line)).toEqual([1, 2, 3])
+  })
+
+  test('a moved name declared twice stays, a computed module name is flagged, a deep import keeps its package', () => {
+    const text = [
+      "import { BatchSpanProcessor, ReadableSpan } from '@opentelemetry/sdk-trace-base'",
+      "import { trace } from '@opentelemetry/api'",
+      'function f(BatchSpanProcessor, trace) {}',
+      "const x = require(`@opentelemetry/${name}`)",
+      "import { foo } from '@opentelemetry/sdk-trace-base/build/src/foo'",
+      '',
+    ].join('\n')
+    const r = run(text)
+    expect(r.flags).toEqual([
+      [
+        1,
+        'BatchSpanProcessor is declared more than once in this file, so its import from @opentelemetry/sdk-trace-base was left as it is.',
+      ],
+      [
+        4,
+        'A require or import() of a module name built at runtime (@opentelemetry/...), not rewritten in 0.1.0. Check which package it loads.',
+      ],
+    ])
+    expect(r.keep).toEqual([{ module: '@opentelemetry/sdk-trace-base', local: 'BatchSpanProcessor' }])
+    expect(r.modules).toEqual(['@opentelemetry/api', '@opentelemetry/sdk-trace-base'])
+  })
+
+  test('lazy when every OpenTelemetry module comes in through import()', () => {
+    const lazy = "export async function start() {\n  const { NodeTracerProvider } = await import('@opentelemetry/sdk-trace-node')\n}\n"
+    expect(context('a.ts', lazy).lazy).toBe(true)
+    expect(context('a.js', `function f() { require('@opentelemetry/api') }\n${lazy}`).lazy).toBe(true)
+    expect(context('a.ts', `import { trace } from '@opentelemetry/api'\n${lazy}`).lazy).toBe(false)
+    expect(context('a.js', `const api = require('@opentelemetry/api')\n${lazy}`).lazy).toBe(false)
+    expect(context('a.ts', 'const x = 1\n').lazy).toBe(false)
   })
 })
