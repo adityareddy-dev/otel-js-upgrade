@@ -19,7 +19,7 @@ npx otel-js-upgrade <target> [paths...] [options]
 
 `3` moves you to SDK 3.0. `2.12` does only the code moves that already work on the 2.12 packages, so you can land the code change now and bump the packages later. Both run the same rules on your code, the difference is what happens to package.json.
 
-Until SDK 3.0.0 is released, target `3` is a preview. A dry run or `--check` shows what will change and a todo says package.json is left alone, and `3 --write` stops with exit code 2, since package.json can't get the final version numbers yet and the rewritten code would import `@opentelemetry/sdk-trace` with no line there to install it. 0.1.1 lifts that when 3.0 ships. Target `2.12` moves `@opentelemetry/sdk-trace-base`, `sdk-trace-node` and `sdk-trace-web` to `@opentelemetry/sdk-trace` and raises `core` and `resources` to 2.12.0.
+Until SDK 3.0.0 is released, target `3` is a preview. A dry run or `--check` shows what will change and a todo says package.json is left alone, and `3 --write` stops with exit code 2, since package.json can't get the final version numbers yet and the rewritten code would import `@opentelemetry/sdk-trace` with no line there to install it. A later release lifts that once 3.0.0 is out. Target `2.12` moves `@opentelemetry/sdk-trace-base`, `sdk-trace-node` and `sdk-trace-web` to `@opentelemetry/sdk-trace` and raises `core` and `resources` to 2.12.0.
 
 Paths default to `.`. `node_modules`, build output and anything git ignores are skipped.
 
