@@ -1,0 +1,26 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "note",
+    "line": 10,
+    "column": 3,
+    "message": "spanProcessor was removed. spanProcessors is set beside it, and sdk-node 2.x already ignored spanProcessor when spanProcessors was set.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationspanprocessor"
+  },
+  {
+    "rule": "manual-review",
+    "severity": "note",
+    "line": 12,
+    "column": 3,
+    "message": "logRecordProcessor was removed. logRecordProcessors is set beside it, and sdk-node 2.x already ignored logRecordProcessor when logRecordProcessors was set.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationlogrecordprocessor"
+  },
+  {
+    "rule": "manual-review",
+    "severity": "note",
+    "line": 14,
+    "column": 27,
+    "message": "spanProcessor was removed. spanProcessors is set beside it, and sdk-node 2.x already ignored spanProcessor when spanProcessors was set.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationspanprocessor"
+  }
+]

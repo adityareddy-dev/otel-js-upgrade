@@ -1,0 +1,10 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 8,
+    "column": 3,
+    "message": "spanProcessor and spanProcessors are both set, and 2.x used spanProcessor whenever spanProcessors was unset. 3.0 reads only spanProcessors. Merge them by hand.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationspanprocessor"
+  }
+]

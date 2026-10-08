@@ -1,0 +1,18 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "note",
+    "line": 5,
+    "column": 22,
+    "message": "NodeSDK gets options from config, which this tool can't read. Where they set spanProcessor, metricReader or logRecordProcessor, 3.0 wants spanProcessors, metricReaders or logRecordProcessors (arrays).",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationspanprocessor"
+  },
+  {
+    "rule": "manual-review",
+    "severity": "note",
+    "line": 9,
+    "column": 25,
+    "message": "NodeSDK gets options from shared, which this tool can't read. Where they set spanProcessor, metricReader or logRecordProcessor, 3.0 wants spanProcessors, metricReaders or logRecordProcessors (arrays).",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationspanprocessor"
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 6,
+    "column": 20,
+    "message": "spanProcessor is set from an expression this tool won't run twice, so it was left as it is. 3.0 reads only spanProcessors: write spanProcessors: [value], or leave it undefined when there is none.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationspanprocessor"
+  },
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 7,
+    "column": 19,
+    "message": "metricReader is set from an expression this tool won't run twice, so it was left as it is. 3.0 reads only metricReaders: write metricReaders: [value], or leave it undefined when there is none.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationmetricreader"
+  },
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 8,
+    "column": 25,
+    "message": "logRecordProcessor is set from an expression this tool won't run twice, so it was left as it is. 3.0 reads only logRecordProcessors: write logRecordProcessors: [value], or leave it undefined when there is none.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationlogrecordprocessor"
+  }
+]
