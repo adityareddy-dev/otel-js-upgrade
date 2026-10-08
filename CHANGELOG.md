@@ -6,4 +6,4 @@ First release. Moves code from the 2.x trace SDK packages to `@opentelemetry/sdk
 
 Targets `3` and `2.12`. Dry run by default, `--write` to apply, `--check` for CI, `--json` for a machine-readable report.
 
-`3 --write` is refused with exit code 2 until SDK 3.0 is on npm, since the rewritten code would import `@opentelemetry/sdk-trace` while package.json still lists the old packages. A dry run of `3` works. 0.1.1 lifts the refusal when 3.0 ships.
+`3 --write` is refused with exit code 2 until SDK 3.0.0 is released, since package.json can't get the final version numbers before then and the rewritten code would import `@opentelemetry/sdk-trace` while package.json still lists the old packages. A dry run of `3` works. 0.1.1 lifts the refusal when 3.0 ships.

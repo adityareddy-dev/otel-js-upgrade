@@ -1,4 +1,4 @@
-// The 3.0 line is not on npm until day 0. While false, target 3 leaves every package.json alone.
+// SDK 3.0.0 isn't released until day 0, npm only has development builds. While false, target 3 leaves every package.json alone.
 export const released = false
 export const releaseDate = '2026-10-15'
 

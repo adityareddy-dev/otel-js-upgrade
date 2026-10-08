@@ -7,7 +7,7 @@ npx otel-js-upgrade 3
 npx otel-js-upgrade 3 --write
 ```
 
-Until SDK 3.0 is on npm, `3 --write` stops and points you at `2.12 --write`, see Targets.
+Until SDK 3.0.0 is released, `3 --write` stops and points you at `2.12 --write`, see Targets.
 
 The default is a dry run. Nothing is written until you say `--write`, and `--write` refuses to run on a dirty git tree unless you add `--allow-dirty`. Every file it changes is parsed again afterwards, and a file that doesn't parse is left exactly as it was and reported with exit code 3.
 
@@ -19,7 +19,7 @@ npx otel-js-upgrade <target> [paths...] [options]
 
 `3` moves you to SDK 3.0. `2.12` does only the code moves that already work on the 2.12 packages, so you can land the code change now and bump the packages later. Both run the same rules on your code, the difference is what happens to package.json.
 
-Until SDK 3.0 is on npm, target `3` is a preview. A dry run or `--check` shows what will change and a todo says package.json is left alone, and `3 --write` stops with exit code 2, since the rewritten code would import `@opentelemetry/sdk-trace` before anything can install it. 0.1.1 lifts that when 3.0 ships. Target `2.12` moves `@opentelemetry/sdk-trace-base`, `sdk-trace-node` and `sdk-trace-web` to `@opentelemetry/sdk-trace` and raises `core` and `resources` to 2.12.0.
+Until SDK 3.0.0 is released, target `3` is a preview. A dry run or `--check` shows what will change and a todo says package.json is left alone, and `3 --write` stops with exit code 2, since package.json can't get the final version numbers yet and the rewritten code would import `@opentelemetry/sdk-trace` with no line there to install it. 0.1.1 lifts that when 3.0 ships. Target `2.12` moves `@opentelemetry/sdk-trace-base`, `sdk-trace-node` and `sdk-trace-web` to `@opentelemetry/sdk-trace` and raises `core` and `resources` to 2.12.0.
 
 Paths default to `.`. `node_modules`, build output and anything git ignores are skipped.
 
@@ -88,7 +88,7 @@ Rule ids: `span-processor-options`, `nodesdk-plural-options`, `register`, `sdk-t
 | --- | --- |
 | 0 | The run finished, with or without changes and flags. |
 | 1 | `--check` and at least one change is pending. Flags alone don't set it. |
-| 2 | Usage error, the parser couldn't load, `3 --write` before SDK 3.0 is on npm, or `--write` refused on a dirty tree. Nothing was written. |
+| 2 | Usage error, the parser couldn't load, `3 --write` before SDK 3.0.0 is released, or `--write` refused on a dirty tree. Nothing was written. |
 | 3 | A rewritten file failed the parse check, a rule threw, or a file couldn't be written. Those files were left as they were and the rest were processed. A package.json is written last, and only when every file under it was, otherwise it stays as it was with a todo. |
 
 ## Node

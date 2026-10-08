@@ -6,7 +6,7 @@ import { createTwoFilesPatch } from 'diff'
 import { FLAG_LINKS } from './data/links.js'
 import { CONTEXT_ASYNC_HOOKS, SDK_TRACE, T6, TRACE_SOURCES } from './data/names.js'
 import { LATER_RULE_IDS, RULE_IDS, RULE_UNITS, TARGETS, type FlagId, type RuleId, type Severity, type Target } from './data/rules.js'
-import { released, REMOVED } from './data/versions.js'
+import { released, releaseDate, REMOVED } from './data/versions.js'
 import { discover, displayPath, gitStatus, inSentence, isCode, Manifests, pathProblem, within, type Found, type Manifest } from './discover.js'
 import { bindingsOf } from './engine/bindings.js'
 import { parseFile } from './engine/parse.js'
@@ -132,7 +132,7 @@ export interface PackageOutcome {
 }
 
 const MB = 1024 * 1024
-const UNRELEASED = "SDK 3.0 isn't on npm yet. Run `otel-js-upgrade 2.12 --write` for the moves that work today, or a dry run of 3 to see what will change."
+const UNRELEASED = `SDK 3.0.0 isn't released yet (due ${releaseDate}) and package.json can't get its final version numbers before then, so this version doesn't write target 3. A dry run of 3 shows what will change, and \`otel-js-upgrade 2.12 --write\` does the moves that work today. The next release lifts this once 3.0.0 is out.`
 // The engine's prefilter: a file without these is never parsed, so a refused package has nothing to skip in it.
 const PREFILTER = ['@opentelemetry/', '.register(', '.addSpanProcessor(']
 const REFUSED = {

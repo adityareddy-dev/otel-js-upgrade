@@ -98,7 +98,7 @@ export function renderText(result: RunResult, options: { readonly color: boolean
   } else {
     out.push(`${plural(s.filesChanged, 'file')} would change (${plural(s.edits, 'edit')}). ${counts} ${scanned}`)
     if (s.filesChanged > 0 && report.target === '3' && !released) {
-      out.push('--write on target 3 waits for SDK 3.0 on npm. Run `otel-js-upgrade 2.12 --write` for the moves that work today.')
+      out.push('--write on target 3 waits for a release after SDK 3.0.0 is out. Run `otel-js-upgrade 2.12 --write` for the moves that work today.')
     } else if (s.filesChanged > 0) {
       out.push(
         install.length > 0

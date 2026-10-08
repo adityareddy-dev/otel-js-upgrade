@@ -108,14 +108,14 @@ test('the Node notice goes to stderr only below 22.15.0 and only for target 3', 
   expect(cli('2.12', project).stderr).not.toContain('SDK 3.0 itself needs')
 })
 
-test.skipIf(released)('3 --write exits 2 with one line before 3.0 is on npm, --json still prints a document', () => {
-  const line = "otel-js-upgrade: SDK 3.0 isn't on npm yet. Run `otel-js-upgrade 2.12 --write` for the moves that work today, or a dry run of 3 to see what will change.\n"
+test.skipIf(released)('3 --write exits 2 with one line before 3.0.0 is released, --json still prints a document', () => {
+  const line = "otel-js-upgrade: SDK 3.0.0 isn't released yet (due 2026-10-15) and package.json can't get its final version numbers before then, so this version doesn't write target 3. A dry run of 3 shows what will change, and `otel-js-upgrade 2.12 --write` does the moves that work today. The next release lifts this once 3.0.0 is out.\n"
   const r = cli('3', project, '--write', '--allow-dirty')
   expect(r.status).toBe(2)
   expect(r.stdout).toBe('')
   expect(r.stderr).toBe(line)
   const doc = JSON.parse(cli('3', project, '--write', '--allow-dirty', '--json').stdout) as Record<string, unknown>
-  expect(doc).toMatchObject({ schema: 1, exitCode: 2, error: expect.stringContaining("SDK 3.0 isn't on npm yet") })
+  expect(doc).toMatchObject({ schema: 1, exitCode: 2, error: expect.stringContaining("SDK 3.0.0 isn't released yet") })
   expect(cli('3', project, '--check').status).toBe(1)
 })
 

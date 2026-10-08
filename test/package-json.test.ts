@@ -189,7 +189,7 @@ describe('package-json project cases', () => {
             for (const [path, text] of variant.apply(input)) {
               if (path.endsWith('package.json')) expect(before.tree.get(path), `${where}, unreleased: ${path}`).toBe(text)
             }
-            const todo = (f: ExpectedFlag) => f.rule === 'package-json-skipped' && (f.message ?? '').startsWith('SDK 3.0 is not on npm yet')
+            const todo = (f: ExpectedFlag) => f.rule === 'package-json-skipped' && (f.message ?? '').startsWith("SDK 3.0.0 isn't released yet")
             const touched = new Set(
               [...run.flags.filter((f) => f.file.endsWith('package.json')).map((f) => f.file), ...[...run.tree].filter(([p, t]) => input.get(p) !== undefined && variant.apply(input).get(p) !== t).map(([p]) => p)].filter(
                 (p) => p.endsWith('package.json') && !run.flags.some((f) => f.file === p && (f.rule === 'sdk-1x' || /^(This package peers|package.json doesn't parse)/.test(f.message ?? ''))),

@@ -16,7 +16,7 @@ export interface PackageInput {
   // The file as read, BOM included.
   readonly text: string
   readonly target: Target
-  // Whether SDK 3.0 is on npm. The CLI passes versions.ts' released, tests pass both.
+  // Whether SDK 3.0.0 is released. The CLI passes versions.ts' released, tests pass both.
   readonly released: boolean
   // @opentelemetry/* packages this package's files load after the run (FileResult.modules, hoisted by liveByPackage).
   readonly live: ReadonlySet<string>
@@ -616,7 +616,7 @@ function passSync(input: PackageInput): PackageResult {
   }
   if (t3 && !input.released) {
     reasons.push(
-      makeFlag(path, 'package-json-skipped', { line: 1, column: 1 }, `SDK 3.0 is not on npm yet (due ${releaseDate}). Run again after the release to update dependencies, or use target 2.12 now.`),
+      makeFlag(path, 'package-json-skipped', { line: 1, column: 1 }, `SDK 3.0.0 isn't released yet (due ${releaseDate}), so package.json is left alone until its final version numbers are out. The next release of otel-js-upgrade updates dependencies, or use target 2.12 now.`),
     )
   }
   if (input.partial || input.skipEdits || (t3 && !input.released)) return unchanged([...reasons, ...info])

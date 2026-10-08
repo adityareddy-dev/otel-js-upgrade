@@ -82,11 +82,11 @@ test('dry run: header, diff without the ===== line, closing lines byte for byte,
       '',
       'To do (1)',
       '  package.json:1:1  package-json-skipped',
-      '    SDK 3.0 is not on npm yet (due 2026-10-15). Run again after the release to update dependencies, or use target 2.12 now.',
+      "    SDK 3.0.0 isn't released yet (due 2026-10-15), so package.json is left alone until its final version numbers are out. The next release of otel-js-upgrade updates dependencies, or use target 2.12 now.",
       '    https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md',
       '',
       '1 file would change (1 edit). 1 to do, 0 notes, 0 errors. Scanned 1 file in 1 package.',
-      '--write on target 3 waits for SDK 3.0 on npm. Run `otel-js-upgrade 2.12 --write` for the moves that work today.',
+      '--write on target 3 waits for a release after SDK 3.0.0 is out. Run `otel-js-upgrade 2.12 --write` for the moves that work today.',
       '',
     ].join('\n'),
   )
@@ -122,7 +122,7 @@ test('--check exits 1 on a pending change, flags alone leave it at 0', async () 
     },
   })
   const r = await run({ target: '3', cwd: dir, mode: 'check' })
-  // The Jaeger todo and the one that says 3.0 isn't on npm yet.
+  // The Jaeger todo and the one that says 3.0.0 isn't released yet.
   expect(report(r).summary.todo).toBe(2)
   expect(r.exitCode).toBe(0)
 })
@@ -163,7 +163,7 @@ test('--write: one line per file, the package.json counted as a file, the instal
   expect(readFileSync(join(dir, 'package.json'), 'utf8')).toContain('"@opentelemetry/sdk-trace": "^2.12.0"')
 })
 
-test.skipIf(released)('3 --write is refused before 3.0 is on npm, dry run and --check still work', async () => {
+test.skipIf(released)('3 --write is refused before 3.0.0 is released, dry run and --check still work', async () => {
   const dir = project({ 'package.json': PKG, 'src/tracing.ts': SOURCE })
   const r = await run({ target: '3', cwd: dir, mode: 'write', allowDirty: true })
   expect(r.exitCode).toBe(2)
@@ -173,7 +173,7 @@ test.skipIf(released)('3 --write is refused before 3.0 is on npm, dry run and --
     tool: 'otel-js-upgrade',
     version: '0.1.0',
     exitCode: 2,
-    error: "SDK 3.0 isn't on npm yet. Run `otel-js-upgrade 2.12 --write` for the moves that work today, or a dry run of 3 to see what will change.",
+    error: "SDK 3.0.0 isn't released yet (due 2026-10-15) and package.json can't get its final version numbers before then, so this version doesn't write target 3. A dry run of 3 shows what will change, and `otel-js-upgrade 2.12 --write` does the moves that work today. The next release lifts this once 3.0.0 is out.",
   })
   expect(readFileSync(join(dir, 'src/tracing.ts'), 'utf8')).toBe(SOURCE)
   expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(PKG)
