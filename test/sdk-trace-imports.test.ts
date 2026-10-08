@@ -229,3 +229,17 @@ describe('kept', () => {
     })
   })
 })
+
+describe('line endings', () => {
+  test('new declarations in a CRLF file end with CRLF', () => {
+    const text = "import { trace } from '@opentelemetry/api';\r\nimport { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';\r\n\r\nconst p = new NodeTracerProvider();\r\n"
+    const stub = wants([[CORE, 'W3CTraceContextPropagator', 'value'], [API, 'context', 'value']])
+    expect(run('a.ts', text, [stub, sdkTraceImports, imports]).text).toBe(
+      "import { trace } from '@opentelemetry/api';\r\nimport { TracerProvider } from '@opentelemetry/sdk-trace';\r\nimport { context } from '@opentelemetry/api';\r\nimport { W3CTraceContextPropagator } from '@opentelemetry/core';\r\n\r\nconst p = new TracerProvider();\r\n",
+    )
+    const bare = "'use strict';\r\n// Starts @opentelemetry/ tracing.\r\n\r\nmain();\r\n"
+    expect(run('a.cjs', bare, [wants([[API, 'trace', 'value']]), imports]).text).toBe(
+      "'use strict';\r\n// Starts @opentelemetry/ tracing.\r\nconst { trace } = require('@opentelemetry/api');\r\n\r\nmain();\r\n",
+    )
+  })
+})

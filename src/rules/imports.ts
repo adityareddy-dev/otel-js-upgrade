@@ -193,7 +193,11 @@ const isProgramChild = (node: SgNode) => node.parent()?.kind() === 'program'
 function insertionPoint(ctx: FileContext, form: 'esm' | 'cjs', removed: Set<number>): { index: number; before: boolean } {
   const top = ctx.tree.namedChildren()
   const alive = (n: SgNode) => !removed.has(n.id())
-  const lineEndOf = (n: SgNode) => lineBounds(ctx.text, n.range().start.index, n.range().end.index).lineEnd
+  // Before the line's CR, so the new lines go between the statement and its own ending.
+  const lineEndOf = (n: SgNode) => {
+    const { lineEnd } = lineBounds(ctx.text, n.range().start.index, n.range().end.index)
+    return ctx.text[lineEnd - 1] === '\r' ? lineEnd - 1 : lineEnd
+  }
   if (form === 'esm') {
     const otel = ctx.bindings
       .filter((b) => b.declaration.kind() === 'import_statement' && isProgramChild(b.declaration) && alive(b.declaration))
