@@ -1,0 +1,10 @@
+[
+  { "rule": "manual-review", "severity": "todo", "line": 2, "column": 54 },
+  {
+    "rule": "register-unresolved",
+    "severity": "todo",
+    "line": 4,
+    "column": 3,
+    "message": "provider.register() looks like a tracer provider's, but this tool couldn't tie provider to one new NodeTracerProvider or new WebTracerProvider imported by name, so it was not expanded. If it is a NodeTracerProvider or WebTracerProvider, set the globals by hand with trace.setGlobalTracerProvider, context.setGlobalContextManager and propagation.setGlobalPropagator, since TracerProvider has no register()."
+  }
+]

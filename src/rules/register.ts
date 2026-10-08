@@ -55,9 +55,41 @@ function nearestFunction(node: SgNode): SgNode | null {
   return null
 }
 
-function declaratorOf(ctx: FileContext, name: string): SgNode | null {
-  if (!ctx.declaredOnce(name)) return null
+function declaratorOf(ctx: FileContext, name: string, at?: SgNode): SgNode | null {
+  if (!ctx.declaredOnce(name)) return at ? scopedConst(ctx, name, at) : null
   return ctx.tree.find({ rule: { kind: 'variable_declarator', has: { field: 'name', kind: 'identifier', regex: `^${name.replace(/\$/g, '\\$')}$` } } })
+}
+
+const BLOCK_SCOPES = new Set(['program', 'statement_block', 'switch_body', 'class_body'])
+const LOOPS = new Set(['for_statement', 'for_in_statement'])
+const mentions = (node: SgNode | null, name: string) =>
+  node !== null && node.findAll({ rule: { kind: 'identifier', regex: `^${name.replace(/\$/g, '\\$')}$` } }).length + (node.text() === name ? 1 : 0) > 0
+
+// The const a name means at this spot when the file declares it more than once, found by walking out
+// through the scopes. A parameter, var, let, function, class, import, catch or loop variable that could
+// bind the name first gives null.
+function scopedConst(ctx: FileContext, name: string, at: SgNode): SgNode | null {
+  const isName = { field: 'name', regex: `^${name.replace(/\$/g, '\\$')}$` }
+  if (ctx.tree.find({ rule: { kind: 'variable_declaration', has: { kind: 'variable_declarator', has: isName } } })) return null
+  for (let p = at.parent(); p; p = p.parent()) {
+    const kind = String(p.kind())
+    if (FUNCTIONS.has(kind) && (mentions(p.field('parameters'), name) || mentions(p.field('parameter'), name) || p.field('name')?.text() === name)) return null
+    if (kind === 'catch_clause' && mentions(p.field('parameter'), name)) return null
+    if (LOOPS.has(kind) && (mentions(p.field('left'), name) || mentions(p.field('initializer'), name))) return null
+    if (!BLOCK_SCOPES.has(kind)) continue
+    for (const child of p.children()) {
+      const d = child.kind() === 'export_statement' ? (child.field('declaration') ?? child) : child
+      const k = String(d.kind())
+      if (k === 'import_statement' && mentions(d, name)) return null
+      if (k !== 'lexical_declaration') {
+        if (d.field('name')?.text() === name) return null
+        continue
+      }
+      const hit = d.children().find((c) => c.kind() === 'variable_declarator' && c.field('name')?.text() === name)
+      if (hit) return d.children()[0]?.text() === 'const' ? hit : null
+    }
+  }
+  return null
 }
 
 // What a `new P(...)` builds, when P is a provider binding.
@@ -98,8 +130,8 @@ function factory(ctx: FileContext, name: string): Platform | 'basic' | 'other' {
 type Receiver = { readonly provider: false } | { readonly provider: true; readonly platform: Platform | null; readonly problem: string | null }
 
 // Whether a receiver name is a provider this file builds, and of which platform.
-function receiverOf(ctx: FileContext, name: string): Receiver {
-  const declarator = declaratorOf(ctx, name)
+function receiverOf(ctx: FileContext, name: string, at: SgNode): Receiver {
+  const declarator = declaratorOf(ctx, name, at)
   if (!declarator) return { provider: false }
   const values: (SgNode | null)[] = []
   const init = declarator.field('value')
@@ -372,10 +404,15 @@ const looksLikeProvider = (receiver: SgNode) => /provider/i.test(receiver.text()
 
 function heuristicFlag(ctx: FileContext, call: SgNode, receiver: SgNode) {
   const text = short(receiver)
+  // A name declared here was built from a form this version doesn't follow, or is bound more than once.
+  const name = { kind: 'identifier', regex: `^${receiver.text().replace(/\$/g, '\\$')}$` }
+  const declares = [{ kind: 'variable_declarator', has: { field: 'name', ...name } }, { kind: 'required_parameter', has: { field: 'pattern', ...name } }]
+  const here = receiver.kind() === 'identifier' && ctx.tree.find({ rule: { any: declares } }) !== null
+  const why = here ? `this tool couldn't tie ${text} to one new NodeTracerProvider or new WebTracerProvider imported by name` : "this file doesn't create it"
   ctx.flag(
     'register-unresolved',
     call,
-    `${text}.register() looks like a tracer provider's, but this file doesn't create it, so it was not expanded. If it is a NodeTracerProvider or WebTracerProvider, ${BY_HAND.charAt(0).toLowerCase()}${BY_HAND.slice(1)}`,
+    `${text}.register() looks like a tracer provider's, but ${why}, so it was not expanded. If it is a NodeTracerProvider or WebTracerProvider, ${BY_HAND.charAt(0).toLowerCase()}${BY_HAND.slice(1)}`,
     { link: linkFor(null) },
   )
 }
@@ -432,7 +469,7 @@ function run(ctx: FileContext): Edit[] {
       }
       continue
     }
-    const r = receiver.kind() === 'identifier' ? receiverOf(ctx, receiver.text()) : ({ provider: false } as const)
+    const r = receiver.kind() === 'identifier' ? receiverOf(ctx, receiver.text(), receiver) : ({ provider: false } as const)
     if (!r.provider) {
       if (call && looksLikeProvider(receiver)) {
         heuristicFlag(ctx, call, receiver)
