@@ -1,0 +1,10 @@
+[
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "todo",
+    "line": 5,
+    "column": 3,
+    "message": "package.json doesn't parse (PropertyNameExpected at 5:3), so it was left alone. npm rejects it too, fix it and run this again."
+  }
+]

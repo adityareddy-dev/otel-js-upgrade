@@ -1,0 +1,6 @@
+{
+  "name": "app",
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "mono",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@opentelemetry/sdk-trace-base": "^2.0.0"
+  }
+}

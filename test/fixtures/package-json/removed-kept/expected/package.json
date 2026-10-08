@@ -1,0 +1,9 @@
+{
+  "name": "app",
+  "dependencies": {
+    "@opentelemetry/api-logs": "^0.200.0",
+    "@opentelemetry/core": "^3.0.0",
+    "@opentelemetry/exporter-jaeger": "^2.0.0",
+    "@opentelemetry/shim-opentracing": "^2.0.0"
+  }
+}

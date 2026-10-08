@@ -1,0 +1,10 @@
+[
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "todo",
+    "line": 4,
+    "column": 5,
+    "message": "@opentelemetry/sdk-trace-base 2.x isn't a plain version, so @opentelemetry/sdk-trace-base, @opentelemetry/sdk-trace-node stay. Replace them with @opentelemetry/sdk-trace 3.0.0 in package.json by hand."
+  }
+]

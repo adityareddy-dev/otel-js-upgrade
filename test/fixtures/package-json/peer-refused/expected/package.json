@@ -1,0 +1,10 @@
+{
+  "name": "lib",
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.0.0",
+    "@opentelemetry/sdk-trace-base": "^2.0.0"
+  },
+  "devDependencies": {
+    "@opentelemetry/sdk-trace-base": "^2.0.0"
+  }
+}

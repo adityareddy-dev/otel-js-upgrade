@@ -1,0 +1,23 @@
+{
+  "name": "app",
+  "dependencies": {
+    "@opentelemetry/core": "^3.0.0",
+    "@opentelemetry/sdk-metrics": "catalog:"
+  },
+  "overrides": {
+    "@opentelemetry/sdk-node": {
+      "@opentelemetry/core": "2.0.0"
+    },
+    "foo": {
+      "bar": "1.0.0"
+    }
+  },
+  "resolutions": {
+    "@opentelemetry/resources": "1.13.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "next>@opentelemetry/api": "1.4.1"
+    }
+  }
+}

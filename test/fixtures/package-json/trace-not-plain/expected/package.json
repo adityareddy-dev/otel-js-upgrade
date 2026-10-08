@@ -1,0 +1,7 @@
+{
+  "name": "app",
+  "dependencies": {
+    "@opentelemetry/sdk-trace-base": "2.x",
+    "@opentelemetry/sdk-trace-node": "^2.0.0"
+  }
+}

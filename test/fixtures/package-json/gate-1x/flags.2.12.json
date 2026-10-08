@@ -1,0 +1,20 @@
+[
+  {
+    "file": "packages/node/package.json",
+    "rule": "sdk-1x",
+    "severity": "todo",
+    "line": 4,
+    "column": 5,
+    "message": "This package is on OpenTelemetry JS 1.x. Upgrade to 2.x first, then run this again.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/upgrade-to-2.x.md"
+  },
+  {
+    "file": "packages/stable/package.json",
+    "rule": "sdk-1x",
+    "severity": "todo",
+    "line": 4,
+    "column": 5,
+    "message": "This package is on OpenTelemetry JS 1.x. Upgrade to 2.x first, then run this again.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/upgrade-to-2.x.md"
+  }
+]

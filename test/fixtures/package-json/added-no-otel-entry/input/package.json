@@ -1,0 +1,7 @@
+{
+  "name": "app",
+  "dependencies": {
+    "zod": "^3.0.0",
+    "express": "^5.0.0"
+  }
+}

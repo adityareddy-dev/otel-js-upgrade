@@ -1,0 +1,7 @@
+{
+  "name": "app",
+  "dependencies": {
+    "@opentelemetry/sdk-trace": "^3.0.0"
+  },
+  "overrides": {}
+}

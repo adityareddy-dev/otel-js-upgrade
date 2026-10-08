@@ -1,0 +1,10 @@
+[
+  {
+    "file": "package.json",
+    "rule": "package-json-skipped",
+    "severity": "todo",
+    "line": 9,
+    "column": 5,
+    "message": "This package forces @opentelemetry/core, @opentelemetry/resources through overrides. Bumping it would push 3.0 under every 2.x dependency in the tree (contrib packages included), which breaks them. Move the overrides by hand once those dependencies ship 3.0 releases."
+  }
+]
