@@ -151,7 +151,7 @@ export function createContext(input: ContextInput): Engine {
     const where: Position =
       typeof at === 'number' ? current(at) : 'range' in at && typeof at.range === 'function' ? current(at.range().start.index) : (at as Position)
     const severity: Severity = options.severity ?? FLAGS[rule]
-    flags.push({ rule, severity, path: input.path, ...where, message, link: options.link ?? FLAG_LINKS[rule] })
+    flags.push({ rule, severity, path: input.path, line: where.line, column: where.column, message, link: options.link ?? FLAG_LINKS[rule] })
   }
 
   return {
