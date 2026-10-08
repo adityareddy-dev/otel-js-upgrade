@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeAll, expect, test } from 'vitest'
 
+import { released } from '../src/data/versions.js'
+
 // These run the built bin, so npm run build comes first, as it does in CI.
 const CLI = 'dist/cli.js'
 const cli = (...args: string[]) => spawnSync(process.execPath, [CLI, ...args], { encoding: 'utf8', env: { ...process.env, NO_COLOR: '1' } })
@@ -92,4 +94,15 @@ test('the Node notice goes to stderr only below 22.15.0 and only for target 3', 
   const old = major < 22 || (major === 22 && minor < 15)
   expect(cli('3', project).stderr.includes('SDK 3.0 itself needs Node >=22.15.0')).toBe(old)
   expect(cli('2.12', project).stderr).not.toContain('SDK 3.0 itself needs')
+})
+
+test.skipIf(released)('3 --write exits 2 with one line before 3.0 is on npm, --json still prints a document', () => {
+  const line = "otel-js-upgrade: SDK 3.0 isn't on npm yet. Run `otel-js-upgrade 2.12 --write` for the moves that work today, or a dry run of 3 to see what will change.\n"
+  const r = cli('3', project, '--write', '--allow-dirty')
+  expect(r.status).toBe(2)
+  expect(r.stdout).toBe('')
+  expect(r.stderr).toBe(line)
+  const doc = JSON.parse(cli('3', project, '--write', '--allow-dirty', '--json').stdout) as Record<string, unknown>
+  expect(doc).toMatchObject({ schema: 1, exitCode: 2, error: expect.stringContaining("SDK 3.0 isn't on npm yet") })
+  expect(cli('3', project, '--check').status).toBe(1)
 })

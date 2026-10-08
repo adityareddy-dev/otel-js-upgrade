@@ -1,5 +1,6 @@
 import { createColors } from 'picocolors'
 
+import { released } from '../data/versions.js'
 import type { Flag, Install, Report, RunResult } from '../index.js'
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
@@ -93,7 +94,9 @@ export function renderText(result: RunResult, options: { readonly color: boolean
     out.push(install.length > 0 ? `${wrote} Run ${installList(install)} to update ${lockfile(install)}.` : wrote)
   } else {
     out.push(`${plural(s.filesChanged, 'file')} would change (${plural(s.edits, 'edit')}). ${counts} ${scanned}`)
-    if (s.filesChanged > 0) {
+    if (s.filesChanged > 0 && report.target === '3' && !released) {
+      out.push('--write on target 3 waits for SDK 3.0 on npm. Run `otel-js-upgrade 2.12 --write` for the moves that work today.')
+    } else if (s.filesChanged > 0) {
       out.push(
         install.length > 0
           ? `Run again with --write to apply, then run ${installList(install)} to update ${lockfile(install)}.`

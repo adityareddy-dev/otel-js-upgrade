@@ -132,6 +132,7 @@ export interface PackageOutcome {
 }
 
 const MB = 1024 * 1024
+const UNRELEASED = "SDK 3.0 isn't on npm yet. Run `otel-js-upgrade 2.12 --write` for the moves that work today, or a dry run of 3 to see what will change."
 // The engine's prefilter: a file without these is never parsed, so a refused package has nothing to skip in it.
 const PREFILTER = ['@opentelemetry/', '.register(', '.addSpanProcessor(']
 const REFUSED = {
@@ -309,6 +310,8 @@ export async function run(options: RunOptions): Promise<RunResult> {
   const picked = pickRules(options)
   if ('error' in picked) return fail(picked.error, true)
   const { selected, notices } = picked
+  // The rewritten code would import sdk-trace while package.json is left alone, so the app breaks until 3.0 is installed.
+  if (target === '3' && mode === 'write' && !released) return fail(UNRELEASED, false)
 
   if (mode === 'write' && options.allowDirty !== true) {
     for (const p of paths) {

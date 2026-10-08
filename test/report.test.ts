@@ -7,6 +7,7 @@ import { beforeEach, expect, test, vi } from 'vitest'
 import { SDK_TRACE, TRACE_SOURCES } from '../src/data/names.js'
 import { TARGETS, type Target } from '../src/data/rules.js'
 import type { Edit, Flag, Rule } from '../src/engine/types.js'
+import { released } from '../src/data/versions.js'
 import type { Report, RunResult } from '../src/index.js'
 
 // Toy rules in the registry, the real text scans and package pass behind them.
@@ -85,7 +86,7 @@ test('dry run: header, diff without the ===== line, closing lines byte for byte,
       '    https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md',
       '',
       '1 file would change (1 edit). 1 to do, 0 notes, 0 errors. Scanned 1 file in 1 package.',
-      'Run again with --write to apply.',
+      '--write on target 3 waits for SDK 3.0 on npm. Run `otel-js-upgrade 2.12 --write` for the moves that work today.',
       '',
     ].join('\n'),
   )
@@ -128,7 +129,7 @@ test('--check exits 1 on a pending change, flags alone leave it at 0', async () 
 
 test('a rule that throws makes the file an error, exit 3, the other files still processed', async () => {
   const dir = project({ 'package.json': PKG, 'src/tracing.ts': SOURCE, 'src/odd.ts': `${SOURCE}// boom\n` })
-  const r = await run({ target: '3', cwd: dir, mode: 'write', allowDirty: true })
+  const r = await run({ target: '2.12', cwd: dir, mode: 'write', allowDirty: true })
   expect(r.exitCode).toBe(3)
   expect(report(r).files.find((f) => f.path === 'src/odd.ts')).toEqual({
     path: 'src/odd.ts',
@@ -162,14 +163,33 @@ test('--write: one line per file, the package.json counted as a file, the instal
   expect(readFileSync(join(dir, 'package.json'), 'utf8')).toContain('"@opentelemetry/sdk-trace": "^2.12.0"')
 })
 
+test.skipIf(released)('3 --write is refused before 3.0 is on npm, dry run and --check still work', async () => {
+  const dir = project({ 'package.json': PKG, 'src/tracing.ts': SOURCE })
+  const r = await run({ target: '3', cwd: dir, mode: 'write', allowDirty: true })
+  expect(r.exitCode).toBe(2)
+  expect(r.usage).toBeUndefined()
+  expect(r.report).toEqual({
+    schema: 1,
+    tool: 'otel-js-upgrade',
+    version: '0.1.0',
+    exitCode: 2,
+    error: "SDK 3.0 isn't on npm yet. Run `otel-js-upgrade 2.12 --write` for the moves that work today, or a dry run of 3 to see what will change.",
+  })
+  expect(readFileSync(join(dir, 'src/tracing.ts'), 'utf8')).toBe(SOURCE)
+  expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(PKG)
+  expect((await run({ target: '3.0', cwd: dir, mode: 'write', allowDirty: true })).exitCode).toBe(2)
+  expect((await run({ target: '3', cwd: dir })).exitCode).toBe(0)
+  expect((await run({ target: '3', cwd: dir, mode: 'check' })).exitCode).toBe(1)
+})
+
 test('--write is refused on uncommitted changes, and --allow-dirty lets it run', async (ctx) => {
   const dir = project({ 'package.json': PKG, 'src/tracing.ts': SOURCE })
   if (spawnSync('git', ['init', '-q'], { cwd: dir }).error) return ctx.skip()
-  const r = await run({ target: '3', cwd: dir, mode: 'write' })
+  const r = await run({ target: '2.12', cwd: dir, mode: 'write' })
   expect(r.exitCode).toBe(2)
   expect(r.report).toMatchObject({ schema: 1, exitCode: 2, error: expect.stringContaining('uncommitted changes under .') })
   expect(readFileSync(join(dir, 'src/tracing.ts'), 'utf8')).toBe(SOURCE)
-  expect((await run({ target: '3', cwd: dir, mode: 'write', allowDirty: true })).exitCode).toBe(0)
+  expect((await run({ target: '2.12', cwd: dir, mode: 'write', allowDirty: true })).exitCode).toBe(0)
 })
 
 test('--only package-json and --skip of the unit leave the code as it is', async () => {
@@ -196,7 +216,7 @@ test('--only package-json and --skip of the unit leave the code as it is', async
 
 test('a package the pass refuses keeps its code, its files are skipped with the reason', async () => {
   const dir = project({ 'package.json': PKG.replace('^2.2.0', '^1.30.0'), 'src/tracing.ts': SOURCE, 'src/plain.ts': 'export {}\n' })
-  const r = await run({ target: '3', cwd: dir, mode: 'write', allowDirty: true })
+  const r = await run({ target: '2.12', cwd: dir, mode: 'write', allowDirty: true })
   const reason = 'the package is on OpenTelemetry JS 1.x, see the todo on its package.json'
   expect(report(r).files).toEqual([{ path: 'src/tracing.ts', status: 'skipped', reason }])
   expect(report(r).flags.map((f) => [f.rule, f.path, f.line])).toEqual([['sdk-1x', 'package.json', 4]])
