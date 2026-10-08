@@ -1,6 +1,7 @@
-import type { SgNode } from '@ast-grep/napi'
+import type { Lang, SgNode } from '@ast-grep/napi'
 
 import { API, type ImportKind } from '../data/names.js'
+import { kindRule } from './parse.js'
 import { SUPPORTED_FORMS, type Binding, type BindingForm, type Position } from './types.js'
 
 const PREFIX = '@opentelemetry/'
@@ -337,16 +338,16 @@ function declaredBy(node: SgNode): string[] {
 }
 
 // How many times each name is declared anywhere in the file, with no regard to scope.
-export function declarationCounts(root: SgNode): Map<string, number> {
+export function declarationCounts(root: SgNode, lang: Lang): Map<string, number> {
   const counts = new Map<string, number>()
-  for (const node of root.findAll({ rule: { any: DECLARING.map((kind) => ({ kind })) } })) {
+  for (const node of root.findAll(kindRule(lang, DECLARING))) {
     for (const name of declaredBy(node)) counts.set(name, (counts.get(name) ?? 0) + 1)
   }
   return counts
 }
 
 // Every name the file uses as an identifier. A name not in here is free to introduce.
-export function usedNames(root: SgNode): Set<string> {
+export function usedNames(root: SgNode, lang: Lang): Set<string> {
   const kinds = ['identifier', 'shorthand_property_identifier', 'shorthand_property_identifier_pattern', 'type_identifier']
-  return new Set(root.findAll({ rule: { any: kinds.map((kind) => ({ kind })) } }).map((n) => n.text()))
+  return new Set(root.findAll(kindRule(lang, kinds)).map((n) => n.text()))
 }

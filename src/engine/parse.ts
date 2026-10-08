@@ -28,7 +28,7 @@ export interface Parsed {
   readonly broken: SgNode | null
 }
 
-// JavaScript files that don't parse get a second try as TSX, which reads Flow-like annotations and decorators.
+// JavaScript files that don't parse get a second try as TSX, which reads type annotations.
 export function parseFile(path: string, text: string): Parsed | null {
   const lang = langFor(path)
   if (lang === null) return null
@@ -43,4 +43,23 @@ export function parseFile(path: string, text: string): Parsed | null {
 
 export function parseAs(lang: Lang, text: string): SgNode {
   return parse(lang, text).root()
+}
+
+const known = new Map<string, boolean>()
+
+// A rule naming a kind the grammar lacks throws, so TypeScript-only kinds drop out on a JavaScript tree.
+export function kindRule(lang: Lang, kinds: readonly string[]) {
+  const any = kinds.filter((kind) => {
+    const key = `${lang} ${kind}`
+    if (!known.has(key)) {
+      try {
+        parse(lang, '').root().find({ rule: { kind } })
+        known.set(key, true)
+      } catch {
+        known.set(key, false)
+      }
+    }
+    return known.get(key)
+  })
+  return { rule: { any: any.map((kind) => ({ kind })) } }
 }

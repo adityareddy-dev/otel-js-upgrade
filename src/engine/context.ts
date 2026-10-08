@@ -47,8 +47,8 @@ export function createContext(input: ContextInput): Engine {
   const history: Edit[][] = []
   const flags: Flag[] = []
   const importPlan: ImportPlan = { drop: [], keep: [], add: [] }
-  const counts = declarationCounts(input.tree)
-  const taken = usedNames(input.tree)
+  const counts = declarationCounts(input.tree, input.lang)
+  const taken = usedNames(input.tree, input.lang)
   const memo = new Map<string, string>()
   let text = original
   let tree = input.tree
