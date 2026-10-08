@@ -10,3 +10,11 @@ flags/force-flush-timeout/new-provider@3 - forceFlushTimeoutMillis is gone in 3.
 flags/force-flush-timeout/typed-literals@3 - forceFlushTimeoutMillis is gone in 3.0, the todo asks to move it
 nodesdk-plural-options/both-conditional-plural@3 - singular and plural both set, left with manual-review
 nodesdk-plural-options/call-and-await@3 - singular values from calls, left with manual-review
+engine/parse-bsp - the parse check case, its output is the input that doesn't parse
+engine/parse-comma-call - the parse check case, its output is the input that doesn't parse
+engine/parse-comma-object - the parse check case, its output is the input that doesn't parse
+engine/parse-missing-brace - the parse check case, its output is the input that doesn't parse
+engine/parse-missing-paren - the parse check case, its output is the input that doesn't parse
+engine/parse-array-hole - the parse check case, a bare array of undeclared names
+engine/export-type-star - the case the parser can't read, left as it is
+sdk-trace-imports/use-sites - a namespace import of a local module, which a stub can't give members
