@@ -264,7 +264,8 @@ function ownerChain(file: string, owners: readonly string[]): string[] {
     const rel = relative(dirname(pkg), file)
     return rel !== '' && !rel.startsWith('..') && !isAbsolute(rel)
   }
-  return owners.filter(inside).sort((a, b) => dirname(b).length - dirname(a).length)
+  const depth = (pkg: string) => relative(dirname(pkg), file).split(/[\\/]/).length
+  return owners.filter(inside).sort((a, b) => depth(a) - depth(b))
 }
 
 // Each module a file loads is live in the nearest package that lists it, else in the file's own package (hoisting).

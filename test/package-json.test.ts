@@ -192,3 +192,22 @@ describe('package-json project cases', () => {
     }
   }
 })
+
+describe('package-json helpers', () => {
+  test('the nearest owner wins, whatever order the owners come in', () => {
+    expect(ownerOf('a/src/x.ts', ['package.json', 'a/package.json'])).toBe('a/package.json')
+    expect(ownerOf('a/src/x.ts', ['a/package.json', 'package.json'])).toBe('a/package.json')
+    expect(ownerOf('b/x.ts', ['a/package.json', 'package.json'])).toBe('package.json')
+  })
+
+  test('a pinned binding keeps its old package', async () => {
+    const text = '{\n  "name": "app",\n  "dependencies": {\n    "@opentelemetry/sdk-trace-base": "^2.0.0"\n  }\n}\n'
+    for (const target of TARGETS) {
+      const result = await packagePass({ path: 'package.json', text, target, released: true, live: new Set(), pinned: new Set(['@opentelemetry/sdk-trace-base']) })
+      expect(result.text).toBe(text)
+      expect(result.flags.map((f) => [f.rule, f.line])).toEqual([['package-json-skipped', 4]])
+      const free = await packagePass({ path: 'package.json', text, target, released: true, live: new Set() })
+      expect(free.text).not.toContain('sdk-trace-base')
+    }
+  })
+})
