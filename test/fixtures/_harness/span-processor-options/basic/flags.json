@@ -1,0 +1,3 @@
+[
+  { "rule": "manual-review", "severity": "todo", "line": 2, "column": 8 }
+]
