@@ -1,0 +1,4 @@
+[
+  { "rule": "manual-review", "severity": "todo", "line": 1, "column": 10 },
+  { "rule": "register-unresolved", "severity": "todo", "line": 9, "column": 3 }
+]

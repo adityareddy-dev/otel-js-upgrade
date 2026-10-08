@@ -60,10 +60,10 @@ function declaratorOf(ctx: FileContext, name: string, at?: SgNode): SgNode | nul
   return ctx.tree.find({ rule: { kind: 'variable_declarator', has: { field: 'name', kind: 'identifier', regex: `^${name.replace(/\$/g, '\\$')}$` } } })
 }
 
-const BLOCK_SCOPES = new Set(['program', 'statement_block', 'switch_body', 'class_body'])
+const BLOCK_SCOPES = new Set(['program', 'statement_block', 'switch_body', 'switch_case', 'switch_default', 'class_body'])
 const LOOPS = new Set(['for_statement', 'for_in_statement'])
 const mentions = (node: SgNode | null, name: string) =>
-  node !== null && node.findAll({ rule: { kind: 'identifier', regex: `^${name.replace(/\$/g, '\\$')}$` } }).length + (node.text() === name ? 1 : 0) > 0
+  node !== null && node.findAll({ rule: { any: [{ kind: 'identifier' }, { kind: 'shorthand_property_identifier_pattern' }], regex: `^${name.replace(/\$/g, '\\$')}$` } }).length + (node.text() === name ? 1 : 0) > 0
 
 // The const a name means at this spot when the file declares it more than once, found by walking out
 // through the scopes. A parameter, var, let, function, class, import, catch or loop variable that could
@@ -85,8 +85,12 @@ function scopedConst(ctx: FileContext, name: string, at: SgNode): SgNode | null 
         if (d.field('name')?.text() === name) return null
         continue
       }
-      const hit = d.children().find((c) => c.kind() === 'variable_declarator' && c.field('name')?.text() === name)
-      if (hit) return d.children()[0]?.text() === 'const' ? hit : null
+      for (const c of d.children()) {
+        if (c.kind() !== 'variable_declarator') continue
+        const id = c.field('name')
+        if (id?.kind() === 'identifier' && id.text() === name) return d.children()[0]?.text() === 'const' ? c : null
+        if (mentions(id, name)) return null
+      }
     }
   }
   return null
