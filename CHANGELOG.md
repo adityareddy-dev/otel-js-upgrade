@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 (2026-10-08)
 
 First release. Moves code from the 2.x trace SDK packages to `@opentelemetry/sdk-trace`, turns span processor positional arguments into options objects, pluralises the three `NodeSDK` options, expands `provider.register()` into the api setters, renames `AsyncHooksContextManager`, and on target `2.12` moves package.json with it. Everything it can't rewrite with certainty is flagged with a line and a link, and the code is left alone.
 
