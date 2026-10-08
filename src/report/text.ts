@@ -61,7 +61,9 @@ export function renderText(result: RunResult, options: { readonly color: boolean
     out.push('')
   }
 
-  const errors = report.files.filter((f) => f.status === 'error')
+  const errors = [...report.files.filter((f) => f.status === 'error'), ...report.packages.filter((p) => p.status === 'error')].sort((a, b) =>
+    a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
+  )
   if (errors.length > 0) {
     out.push(c.red(`Errors (${errors.length})`))
     for (const f of errors) out.push(`  ${f.path}`, `    ${f.reason ?? 'failed'}`)

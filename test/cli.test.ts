@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { chmodSync, closeSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { beforeAll, expect, test } from 'vitest'
 
 import { released } from '../src/data/versions.js'
@@ -105,4 +105,99 @@ test.skipIf(released)('3 --write exits 2 with one line before 3.0 is on npm, --j
   const doc = JSON.parse(cli('3', project, '--write', '--allow-dirty', '--json').stdout) as Record<string, unknown>
   expect(doc).toMatchObject({ schema: 1, exitCode: 2, error: expect.stringContaining("SDK 3.0 isn't on npm yet") })
   expect(cli('3', project, '--check').status).toBe(1)
+})
+
+// chmod sets the read-only attribute on Windows too. False where the file stays writable, as for root in a container.
+function readOnly(path: string): boolean {
+  chmodSync(path, 0o444)
+  try {
+    closeSync(openSync(path, 'r+'))
+  } catch {
+    return true
+  }
+  chmodSync(path, 0o644)
+  return false
+}
+
+const PKG = '{\n  "name": "app",\n  "dependencies": {\n    "@opentelemetry/sdk-trace-node": "^2.2.0"\n  }\n}\n'
+const CODE = "import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-node'\n\nconsole.log(new AlwaysOnSampler())\n"
+
+const cliIn = (cwd: string, ...args: string[]) =>
+  spawnSync(process.execPath, [resolve(CLI), ...args], { cwd, encoding: 'utf8', env: { ...process.env, NO_COLOR: '1' } })
+
+function writable() {
+  const dir = mkdtempSync(join(tmpdir(), 'otel-cli-write-'))
+  mkdirSync(join(dir, 'src'))
+  writeFileSync(join(dir, 'package.json'), PKG)
+  writeFileSync(join(dir, 'src/a.ts'), CODE)
+  writeFileSync(join(dir, 'src/b.ts'), CODE)
+  return dir
+}
+
+interface Doc {
+  exitCode: number
+  summary: { filesChanged: number; errors: number; todo: number }
+  files: { path: string; status: string; reason?: string }[]
+  flags: { rule: string; path: string; message: string }[]
+  packages: { path: string; status: string; reason?: string; diff?: string }[]
+}
+
+test('a code file that cannot be written keeps package.json as it was, exit 3', (ctx) => {
+  const dir = writable()
+  if (!readOnly(join(dir, 'src/b.ts'))) return ctx.skip()
+  const r = cliIn(dir, '2.12', '--write', '--allow-dirty', '--json')
+  chmodSync(join(dir, 'src/b.ts'), 0o644)
+  expect(r.status).toBe(3)
+  const doc = JSON.parse(r.stdout) as Doc
+  expect(doc.exitCode).toBe(3)
+  expect(doc.files.map((f) => [f.path, f.status])).toEqual([
+    ['src/a.ts', 'changed'],
+    ['src/b.ts', 'error'],
+  ])
+  expect(doc.files[1]?.reason).toMatch(/^could not write: /)
+  expect(doc.packages).toEqual([{ path: 'package.json', status: 'skipped', removed: [], added: {}, bumped: {}, install: 'npm install', reason: 'src/b.ts could not be written' }])
+  expect(doc.flags.filter((f) => f.rule === 'package-json-skipped').map((f) => [f.path, f.message])).toEqual([
+    ['package.json', 'package.json not changed, since src/b.ts could not be written and may still import what it would remove. Run again once it can be written.'],
+  ])
+  expect(doc.summary).toMatchObject({ filesChanged: 1, errors: 1 })
+  expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(PKG)
+  expect(readFileSync(join(dir, 'src/a.ts'), 'utf8')).toContain("'@opentelemetry/sdk-trace'")
+  expect(readFileSync(join(dir, 'src/b.ts'), 'utf8')).toBe(CODE)
+})
+
+test('a package.json that cannot be written is an error, exit 3, the report still complete', (ctx) => {
+  const dir = writable()
+  if (!readOnly(join(dir, 'package.json'))) return ctx.skip()
+  const r = cliIn(dir, '2.12', '--write', '--allow-dirty', '--json')
+  const text = cliIn(dir, '2.12', '--write', '--allow-dirty')
+  chmodSync(join(dir, 'package.json'), 0o644)
+  expect(r.status).toBe(3)
+  const doc = JSON.parse(r.stdout) as Doc
+  expect(doc.packages.map((p) => [p.path, p.status, p.diff])).toEqual([['package.json', 'error', undefined]])
+  expect(doc.packages[0]?.reason).toMatch(/^could not write: /)
+  expect(doc.summary).toMatchObject({ filesChanged: 2, errors: 1 })
+  expect(doc.files.map((f) => [f.path, f.status])).toEqual([
+    ['src/a.ts', 'changed'],
+    ['src/b.ts', 'changed'],
+  ])
+  expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(PKG)
+  // The second run finds the code moved already and only package.json left to do.
+  expect(text.status).toBe(3)
+  expect(text.stdout).toContain('Errors (1)\n  package.json\n    could not write: ')
+})
+
+test('a file outside every package that cannot be written holds back every package.json', (ctx) => {
+  const dir = mkdtempSync(join(tmpdir(), 'otel-cli-write-'))
+  mkdirSync(join(dir, 'common'))
+  mkdirSync(join(dir, 'service'))
+  writeFileSync(join(dir, 'common/tracing.ts'), CODE)
+  writeFileSync(join(dir, 'service/package.json'), PKG)
+  writeFileSync(join(dir, 'service/index.ts'), CODE)
+  if (!readOnly(join(dir, 'common/tracing.ts'))) return ctx.skip()
+  const r = cliIn(dir, '2.12', '--write', '--allow-dirty', '--json')
+  chmodSync(join(dir, 'common/tracing.ts'), 0o644)
+  expect(r.status).toBe(3)
+  const doc = JSON.parse(r.stdout) as Doc
+  expect(doc.packages.map((p) => [p.path, p.status, p.reason])).toEqual([['service/package.json', 'skipped', 'common/tracing.ts could not be written']])
+  expect(readFileSync(join(dir, 'service/package.json'), 'utf8')).toBe(PKG)
 })

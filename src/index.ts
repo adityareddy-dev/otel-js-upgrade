@@ -121,7 +121,7 @@ export interface RunResult {
 // One package.json after the package pass (2.6), as the reports show it.
 export interface PackageOutcome {
   readonly path: string
-  readonly status: 'changed' | 'unchanged' | 'skipped'
+  readonly status: 'changed' | 'unchanged' | 'skipped' | 'error'
   // The new text with its BOM, indent and line endings kept. The input text when unchanged.
   readonly text: string
   readonly edits: number
@@ -151,6 +151,9 @@ const isTraceSource = (module: string) => (TRACE_SOURCES as readonly string[]).i
 const andList = (items: readonly string[]) =>
   items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
 const packageName = (module: string) => module.split('/').slice(0, 2).join('/')
+// A package.json left as it was reports no dependency changes.
+const UNWRITTEN = { removed: [], added: {}, bumped: {}, edits: 0 } as const
+const messageOf = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 function flag(rule: FlagId, path: string, at: Position, message: string, severity?: Severity): Flag {
   return { rule, severity: severity ?? 'todo', path, line: at.line, column: at.column, message, link: FLAG_LINKS[rule] }
@@ -459,25 +462,45 @@ export async function run(options: RunOptions): Promise<RunResult> {
   }
   for (const e of entries) flags.push(...e.result.flags)
 
-  const unique = new Map<string, Flag>()
-  for (const f of flags) unique.set(`${f.rule}\0${f.path}\0${f.line}\0${f.column}\0${f.message}`, f)
-  const allFlags = [...unique.values()].sort(byPosition)
-
   if (mode === 'write') {
+    const failed: Entry[] = []
     for (const e of entries) {
       if (e.result.status !== 'changed') continue
       try {
         writeFileSync(e.found.abs, e.result.text)
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        e.result = { ...e.result, status: 'error', text: e.original ?? '', rules: [], edits: 0, reason: `could not write: ${message}` }
+        e.result = { ...e.result, status: 'error', text: e.original ?? '', rules: [], edits: 0, reason: `could not write: ${messageOf(error)}` }
+        failed.push(e)
       }
     }
+    // package.json goes last, and not at all while a file it may still need kept its old imports (2.6).
     for (const s of states) {
       const out = outcomes.get(s.manifest.path)
-      if (out?.status === 'changed') writeFileSync(s.manifest.abs, out.text)
+      if (out?.status !== 'changed') continue
+      const stuck = failed.filter((e) => e.owner === null || within(s.manifest.dir, e.found.abs)).map((e) => e.found.path)
+      if (stuck.length > 0) {
+        outcomes.set(s.manifest.path, { ...out, ...UNWRITTEN, status: 'skipped', reason: `${andList(stuck)} could not be written` })
+        flags.push(
+          flag(
+            'package-json-skipped',
+            s.manifest.path,
+            { line: 1, column: 1 },
+            `package.json not changed, since ${andList(stuck)} could not be written and may still import what it would remove. Run again once ${stuck.length === 1 ? 'it' : 'they'} can be written.`,
+          ),
+        )
+        continue
+      }
+      try {
+        writeFileSync(s.manifest.abs, out.text)
+      } catch (error) {
+        outcomes.set(s.manifest.path, { ...out, ...UNWRITTEN, status: 'error', reason: `could not write: ${messageOf(error)}` })
+      }
     }
   }
+
+  const unique = new Map<string, Flag>()
+  for (const f of flags) unique.set(`${f.rule}\0${f.path}\0${f.line}\0${f.column}\0${f.message}`, f)
+  const allFlags = [...unique.values()].sort(byPosition)
 
   const files: ReportFile[] = []
   for (const e of entries) {
@@ -522,7 +545,7 @@ export async function run(options: RunOptions): Promise<RunResult> {
     edits: entries.reduce((n, e) => n + (e.result.status === 'changed' ? e.result.edits : 0), 0) + changedPackages.reduce((n, p) => n + p.edits, 0),
     todo: allFlags.filter((f) => f.severity === 'todo').length,
     notes: allFlags.filter((f) => f.severity === 'note').length,
-    errors: entries.filter((e) => e.result.status === 'error').length,
+    errors: entries.filter((e) => e.result.status === 'error').length + [...outcomes.values()].filter((p) => p.status === 'error').length,
   }
   const exitCode = summary.errors > 0 ? 3 : mode === 'check' && summary.filesChanged > 0 ? 1 : 0
   const anything =
