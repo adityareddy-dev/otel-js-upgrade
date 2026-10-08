@@ -7,10 +7,12 @@ import { TARGETS, type Target } from '../src/data/rules.js'
 import { parseFile } from '../src/engine/parse.js'
 import { runFile } from '../src/engine/run.js'
 import type { Rule } from '../src/engine/types.js'
+import { imports } from '../src/rules/imports.js'
+import { sdkTraceImports } from '../src/rules/sdk-trace-imports.js'
 import { spanProcessorOptions } from '../src/rules/span-processor-options.js'
-import { parseProblems } from './fixture-runner.js'
+import { checkFixture, fixtureCases, parseProblems } from './fixture-runner.js'
 
-// Until the imports pass lands, R1 runs alone and the import, require and export-from lines are left out of the comparison.
+// R1 alone, with the import, require and export-from lines left out of the comparison, so its body edits are proved on their own.
 const root = fileURLToPath(new URL('./fixtures', import.meta.url))
 const own = join(root, 'span-processor-options')
 const guide = join(root, 'guide')
@@ -101,3 +103,9 @@ for (const dir of cases) {
 test('R1 has fixtures', () => {
   expect(cases.length).toBeGreaterThan(0)
 })
+
+// The full spec output, imports included, with the passes that exist on this branch.
+const registry: readonly Rule[] = [spanProcessorOptions, sdkTraceImports, imports]
+const full = fixtureCases(root).filter((c) => c.group === 'span-processor-options' || /^guide\/span-processor-/.test(c.name))
+
+for (const fixture of full) test(`R1 with imports, ${fixture.name}`, () => checkFixture(fixture, registry))
