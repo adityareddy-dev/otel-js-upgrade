@@ -222,4 +222,13 @@ describe('package-json helpers', () => {
       expect(free.text).not.toContain('sdk-trace-base')
     }
   })
+
+  test('an added package goes in the section of the removed package that brought it in, the strongest when two did', async () => {
+    const text = '{\n  "name": "lib",\n  "dependencies": {\n    "@opentelemetry/sdk-trace-web": "^2.11.0"\n  },\n  "devDependencies": {\n    "@opentelemetry/sdk-trace-node": "^2.11.0"\n  }\n}\n'
+    const live = new Set(['@opentelemetry/sdk-trace', '@opentelemetry/core', '@opentelemetry/context-async-hooks'])
+    const result = await packagePass({ path: 'package.json', text, target: '2.12', released: true, live })
+    const json = JSON.parse(result.text) as Record<string, Record<string, string>>
+    expect(json['dependencies']).toEqual({ '@opentelemetry/core': '^2.12.0', '@opentelemetry/sdk-trace': '^2.12.0' })
+    expect(json['devDependencies']).toEqual({ '@opentelemetry/context-async-hooks': '^2.12.0' })
+  })
 })

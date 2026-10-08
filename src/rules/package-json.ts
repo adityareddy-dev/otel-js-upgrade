@@ -7,7 +7,7 @@ import { BLOCKERS } from '../data/blockers.js'
 import { EXPERIMENTAL_CHANGELOG, FLAG_LINKS, UPGRADE_TO_2 } from '../data/links.js'
 import { API, API_LOGS, SDK_TRACE, TRACE_SOURCES } from '../data/names.js'
 import type { FlagId, Severity, Target } from '../data/rules.js'
-import { EXPERIMENTAL, isContrib, REMOVED, releaseDate, STABLE, target212, target212Raise, target3 } from '../data/versions.js'
+import { EXPERIMENTAL, installedBy, isContrib, REMOVED, releaseDate, STABLE, target212, target212Raise, target3 } from '../data/versions.js'
 import type { Flag } from '../engine/types.js'
 
 export interface PackageInput {
@@ -476,6 +476,14 @@ function passSync(input: PackageInput): PackageResult {
   const leaders = [...counts].filter(([, n]) => n === top).map(([o]) => o)
   const common: Operator = leaders.length === 1 && leaders[0] !== undefined ? leaders[0] : '^'
   const addTo: Section = otelEditable.length > 0 && otelEditable.every((e) => e.section === 'devDependencies') ? 'devDependencies' : 'dependencies'
+  // A package a listed removed package brought in is added in that package's section, the strongest when several did.
+  const broughtIn = new Map<string, Section>()
+  for (const e of editable.filter((x) => REMOVED.includes(x.name))) {
+    for (const name of installedBy(e.name)) {
+      const was = broughtIn.get(name)
+      if (was === undefined || rank(e.section) < rank(was)) broughtIn.set(name, e.section)
+    }
+  }
 
   // Bumps, and the 2.12 raises.
   const traceAfter = !blockTrace && (traceWant !== null || existingTrace.length > 0 || missing.includes(SDK_TRACE))
@@ -510,7 +518,7 @@ function passSync(input: PackageInput): PackageResult {
 
   for (const name of missing) {
     const version = name === API ? `^${map[API] ?? ''}` : `${common}${map[name] ?? ''}`
-    write({ section: addTo, name }, version)
+    write({ section: broughtIn.get(name) ?? addTo, name }, version)
   }
   const undeclared = [...missing, ...(traceWant !== null && existingTrace.length === 0 ? [SDK_TRACE] : [])].sort()
 
