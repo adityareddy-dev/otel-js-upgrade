@@ -421,6 +421,13 @@ function statementOf(call: SgNode): SgNode | null {
 
 const looksLikeProvider = (receiver: SgNode) => /provider/i.test(receiver.text())
 
+// Called the way a provider's register() is: no argument, or one object literal. A plugin call passes a plugin.
+function providerShaped(call: SgNode): boolean {
+  const args = call.field('arguments')
+  const given = args ? code(args) : []
+  return given.length === 0 || (given.length === 1 && given[0]!.kind() === 'object')
+}
+
 function heuristicFlag(ctx: FileContext, call: SgNode, receiver: SgNode) {
   const text = short(receiver)
   ctx.flag(
@@ -465,6 +472,7 @@ function run(ctx: FileContext): Edit[] {
     flagged = true
   }
   const expansions: Expansion[] = []
+  const makes = ctx.bindings.some((b) => providerOf(b) !== undefined)
   // provider['register']() is never expanded, but a provider renamed under it would lose the method.
   for (const sub of ctx.tree.findAll({ rule: { kind: 'subscript_expression' } })) {
     const index = sub.field('index')
@@ -485,7 +493,7 @@ function run(ctx: FileContext): Edit[] {
     }
     if (receiver.kind() === 'member_expression') {
       const held = heldBy(ctx, receiver)
-      if (call && (held !== 'other' || looksLikeProvider(receiver))) {
+      if (call && (held !== 'other' || looksLikeProvider(receiver) || (makes && providerShaped(call)))) {
         const text = short(receiver)
         const platform = held === 'node' || held === 'web' ? held : null
         fail(call, platform, `register() is called through ${text}, and this tool doesn't follow members, so it was not expanded. ${BY_HAND}`)
@@ -500,7 +508,8 @@ function run(ctx: FileContext): Edit[] {
     }
     const r = receiver.kind() === 'identifier' ? receiverOf(ctx, receiver.text()) : ({ provider: false } as const)
     if (!r.provider) {
-      if (call && looksLikeProvider(receiver)) {
+      // In a file that makes providers, a register() shaped like a provider's may be one this tool can't follow.
+      if (call && (looksLikeProvider(receiver) || (makes && providerShaped(call) && receiver.kind() !== 'super' && receiver.kind() !== 'this'))) {
         heuristicFlag(ctx, call, receiver)
         flagged = true
       }
