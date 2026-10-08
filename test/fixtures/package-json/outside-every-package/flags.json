@@ -1,0 +1,10 @@
+[
+  {
+    "file": "services/requester/package.json",
+    "rule": "package-json-skipped",
+    "severity": "note",
+    "line": 5,
+    "column": 5,
+    "message": "common/tracing.js is outside every package and still loads @opentelemetry/sdk-trace-base and @opentelemetry/sdk-trace-node, kept"
+  }
+]

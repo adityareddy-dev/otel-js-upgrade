@@ -8,7 +8,7 @@ import { REMOVED } from '../src/data/versions.js'
 import { runFile } from '../src/engine/run.js'
 import type { Flag } from '../src/engine/types.js'
 import { RULES } from '../src/rules/index.js'
-import { liveByPackage, ownerOf, packagePass, readPackage } from '../src/rules/package-json.js'
+import { liveByPackage, outsideEvery, ownerOf, packagePass, readPackage } from '../src/rules/package-json.js'
 
 // Project cases: input/ and expected/ trees, flags.json with a file field. expected.2.12/ and flags.2.12.json when 2.12 differs.
 // Code files run through the engine with no passes, so these cases keep their meaning whatever rules are registered.
@@ -77,10 +77,9 @@ async function runProject(input: Tree, target: Target, released: boolean, option
     for (const f of result.flags) flags.push({ file: path, rule: f.rule, severity: f.severity, line: f.line, column: f.column, message: f.message, link: f.link })
   }
 
-  const live = liveByPackage(
-    considered.map((p) => ({ path: p, text: input.get(p) ?? '' })),
-    files,
-  )
+  const texts = considered.map((p) => ({ path: p, text: input.get(p) ?? '' }))
+  const live = liveByPackage(texts, files)
+  const outside = outsideEvery(texts, files)
   for (const path of considered) {
     const result = await packagePass({
       path,
@@ -88,6 +87,7 @@ async function runProject(input: Tree, target: Target, released: boolean, option
       target,
       released,
       live: live.get(path) ?? new Set(),
+      outside,
       partial: partial.has(path),
       skipEdits: options.skipPackageJson === true,
     })

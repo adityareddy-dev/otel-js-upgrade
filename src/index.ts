@@ -14,7 +14,7 @@ import { decode } from './engine/read.js'
 import { runFile } from './engine/run.js'
 import type { Binding, FileResult, FileStatus, Flag, Position, Rule } from './engine/types.js'
 import { RULES } from './rules/index.js'
-import { liveByPackage, packagePass, readPackage, type PackageFacts } from './rules/package-json.js'
+import { liveByPackage, outsideEvery, packagePass, readPackage, type PackageFacts } from './rules/package-json.js'
 import { textFlags } from './scan/text.js'
 
 export type { FlagId, RuleId, Severity, Target } from './data/rules.js'
@@ -367,12 +367,12 @@ export async function run(options: RunOptions): Promise<RunResult> {
     entries.push(entry)
   }
 
-  const loads: { path: string; modules: readonly string[] }[] = []
+  const loads: { path: string; shown: string; modules: readonly string[] }[] = []
   for (const f of found.unparsed) {
     const text = new TextDecoder().decode(readFileSync(f.abs))
     const owner = stateOf(manifests.ownerOf(f.abs))
     for (const name of namedPackages(text)) owner?.live.add(name)
-    loads.push({ path: f.abs, modules: namedPackages(text) })
+    loads.push({ path: f.abs, shown: f.path, modules: namedPackages(text) })
     const hit = firstRemoved(text)
     const ext = f.path.slice(f.path.lastIndexOf('.'))
     if (hit) flags.push(flag('not-parsed', f.path, hit.at, `${ext} files aren't parsed, and this one names ${hit.name}, which 3.0 removed. Move its imports by hand.`))
@@ -391,11 +391,10 @@ export async function run(options: RunOptions): Promise<RunResult> {
 
   const states = [...packages.values()]
   // A module is live in the nearest package that lists it, else in the file's own (hoisting). Absolute paths on both sides.
-  for (const e of entries) loads.push({ path: e.found.abs, modules: e.result.modules })
-  const live = liveByPackage(
-    states.map((s) => ({ path: s.manifest.abs, text: s.manifest.text ?? '' })),
-    loads,
-  )
+  for (const e of entries) loads.push({ path: e.found.abs, shown: e.found.path, modules: e.result.modules })
+  const manifestTexts = states.map((s) => ({ path: s.manifest.abs, text: s.manifest.text ?? '' }))
+  const live = liveByPackage(manifestTexts, loads)
+  const outside = outsideEvery(manifestTexts, loads).map((f) => ({ path: f.shown, modules: f.modules }))
   const outcomes = new Map<string, PackageOutcome>()
   for (const s of states) {
     const result = await packagePass({
@@ -404,6 +403,7 @@ export async function run(options: RunOptions): Promise<RunResult> {
       target,
       released,
       live: live.get(s.manifest.abs) ?? new Set(),
+      outside,
       partial: s.partial,
       skipEdits: !selected.has('package-json'),
     })

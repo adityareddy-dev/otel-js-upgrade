@@ -224,6 +224,26 @@ test('a package the pass refuses keeps its code, its files are skipped with the 
   expect(readFileSync(join(dir, 'src/tracing.ts'), 'utf8')).toBe(SOURCE)
 })
 
+test('a file no package owns keeps what each package lists of its imports, with one note per package', async () => {
+  state.rules.splice(0, state.rules.length)
+  const shared = "const { NodeTracerProvider } = require('@opentelemetry/sdk-trace-node')\nconst { trace } = require('@opentelemetry/api')\n"
+  const dir = project({
+    'common/tracing.js': shared,
+    'services/a/package.json': PKG,
+    'services/a/index.js': "require('./tracing')\n",
+    'services/b/package.json': '{\n  "name": "b",\n  "dependencies": {}\n}\n',
+  })
+  const r = await run({ target: '2.12', cwd: dir, verbose: true })
+  expect(report(r).flags.map((f) => [f.rule, f.severity, f.path, f.line, f.message])).toEqual([
+    ['package-json-skipped', 'note', 'services/a/package.json', 4, 'common/tracing.js is outside every package and still loads @opentelemetry/sdk-trace-node, kept'],
+  ])
+  // Nothing added to b, which lists neither.
+  expect(report(r).packages.map((p) => [p.path, p.status])).toEqual([
+    ['services/a/package.json', 'unchanged'],
+    ['services/b/package.json', 'unchanged'],
+  ])
+})
+
 test('the package pass gets owners, partial scans and the names never-parsed files keep live', async () => {
   const dir = project({
     'package.json': PKG.replace('"^2.2.0"', '"^2.2.0",\n    "@opentelemetry/sdk-trace-web": "^2.2.0"'),

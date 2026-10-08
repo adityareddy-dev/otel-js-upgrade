@@ -22,10 +22,18 @@ export interface PackageInput {
   readonly live: ReadonlySet<string>
   // Packages of bindings a rule pinned on their old module. Kept live like `live`.
   readonly pinned?: ReadonlySet<string>
+  // Scanned code files no package.json owns, with the modules they load. What this package lists of those is kept (2.6).
+  readonly outside?: readonly OutsideFile[]
   // Only part of the package was scanned (src/ or a single file): read for the gates, never edited.
   readonly partial?: boolean
   // --skip package-json or --no-package-json: read for the gates, never edited, undeclared modules reported.
   readonly skipEdits?: boolean
+}
+
+export interface OutsideFile {
+  // As the note shows it.
+  readonly path: string
+  readonly modules: readonly string[]
 }
 
 export interface PackageResult {
@@ -300,6 +308,18 @@ export function liveByPackage(
   return live
 }
 
+// The files no package owns, a shared tracing.js a Dockerfile copies into each service.
+export function outsideEvery<F extends { readonly path: string; readonly modules: readonly string[] }>(
+  packages: readonly { readonly path: string; readonly text: string }[],
+  files: readonly F[],
+): F[] {
+  const owners = packages.filter((p) => readPackage(p.path, p.text).owner).map((p) => p.path)
+  return files.filter((f) => f.modules.length > 0 && ownerChain(f.path, owners).length === 0)
+}
+
+const andList = (items: readonly string[]) =>
+  items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
+
 type Op = { readonly path: readonly (string | number)[]; readonly value: string | undefined }
 
 export async function packagePass(input: PackageInput): Promise<PackageResult> {
@@ -318,7 +338,10 @@ function passSync(input: PackageInput): PackageResult {
     ...NO_CHANGES,
   })
   if (!facts.parsed || facts.refused !== null) return unchanged(facts.flags)
-  const live = new Set([...input.live, ...(input.pinned ?? [])])
+  const own = new Set([...input.live, ...(input.pinned ?? [])])
+  // A file outside every package keeps what this package lists and never adds to it.
+  const outside = (input.outside ?? []).map((f) => ({ path: f.path, modules: f.modules.filter((m) => facts.declared.has(m)) })).filter((f) => f.modules.length > 0)
+  const live = new Set([...own, ...outside.flatMap((f) => f.modules)])
   if (!facts.owner || (facts.entries.length === 0 && facts.overrides.length === 0 && facts.nested.length === 0 && live.size === 0)) {
     return unchanged([])
   }
@@ -390,6 +413,7 @@ function passSync(input: PackageInput): PackageResult {
   const traceVersion = map[SDK_TRACE] ?? ''
   const oldTrace = editable.filter((e) => (TRACE_SOURCES as readonly string[]).includes(e.name))
   const removed = new Set<string>()
+  const keptForOutside: Entry[] = []
   let blockTrace = false
   let traceWant: { section: Section; range: string } | null = null
   if (oldTrace.length > 0) {
@@ -405,8 +429,10 @@ function passSync(input: PackageInput): PackageResult {
     } else {
       const strongest = [...oldTrace].sort((a, b) => rank(a.section) - rank(b.section) || a.offset - b.offset)[0]
       for (const e of oldTrace) {
-        if (live.has(e.name)) {
+        if (own.has(e.name)) {
           planned.push(flag('package-json-skipped', e.offset, `${e.name} stays, since code in this package still imports it. Remove it once that code moves to ${SDK_TRACE}.`))
+        } else if (live.has(e.name)) {
+          keptForOutside.push(e)
         } else {
           remove(e)
           removed.add(e.name)
@@ -497,8 +523,10 @@ function passSync(input: PackageInput): PackageResult {
       set(e, `${op ?? '^'}${apiVersion}`)
     }
     for (const e of editable.filter((x) => x.name === API_LOGS)) {
-      if (live.has(API_LOGS)) {
+      if (own.has(API_LOGS)) {
         planned.push(flag('package-json-skipped', e.offset, `${API_LOGS} stays, since code in this package still imports it. Remove it once that code imports the Logs API from ${API}.`))
+      } else if (live.has(API_LOGS)) {
+        keptForOutside.push(e)
       } else {
         remove(e)
         removed.add(API_LOGS)
@@ -561,6 +589,13 @@ function passSync(input: PackageInput): PackageResult {
     for (const o of facts.nested) {
       planned.push(flag('package-json-skipped', o.offset, `Nested override ${o.key} names @opentelemetry/* packages and isn't edited. Check it by hand.`, { severity: 'note' }))
     }
+  }
+  for (const f of outside) {
+    const kept = keptForOutside.filter((e) => f.modules.includes(e.name)).sort((a, b) => a.offset - b.offset)
+    const at = kept[0]
+    if (!at) continue
+    const names = [...new Set(kept.map((e) => e.name))]
+    planned.push(flag('package-json-skipped', at.offset, `${f.path} is outside every package and still loads ${andList(names)}, kept`, { severity: 'note' }))
   }
 
   // Nothing is written when only part of the package was scanned, edits are skipped, or 3.0 isn't out.
