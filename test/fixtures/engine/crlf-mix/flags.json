@@ -1,0 +1,16 @@
+[
+  {
+    "rule": "type-no-equivalent",
+    "severity": "todo",
+    "line": 1,
+    "column": 30,
+    "message": "BufferConfig has no equivalent in @opentelemetry/sdk-trace, it was left on @opentelemetry/sdk-trace-node. Hint: Omit<BatchSpanProcessorOptions, 'exporter'>."
+  },
+  {
+    "rule": "type-no-equivalent",
+    "severity": "todo",
+    "line": 2,
+    "column": 31,
+    "message": "SDKRegistrationConfig has no equivalent in @opentelemetry/sdk-trace, it was left on @opentelemetry/sdk-trace-base. Hint: it went away with register()."
+  }
+]

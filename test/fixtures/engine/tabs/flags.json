@@ -1,0 +1,9 @@
+[
+  {
+    "rule": "type-no-equivalent",
+    "severity": "todo",
+    "line": 3,
+    "column": 2,
+    "message": "BufferConfig has no equivalent in @opentelemetry/sdk-trace, it was left on @opentelemetry/sdk-trace-node. Hint: Omit<BatchSpanProcessorOptions, 'exporter'>."
+  }
+]

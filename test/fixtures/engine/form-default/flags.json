@@ -1,0 +1,9 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 1,
+    "column": 8,
+    "message": "Default import of @opentelemetry/sdk-trace-base. Its 3.0 release has no default export, so this import stops working. Use import * as base from '@opentelemetry/sdk-trace-base' instead."
+  }
+]
