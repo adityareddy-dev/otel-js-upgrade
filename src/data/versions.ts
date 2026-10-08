@@ -78,12 +78,10 @@ const versions = (stable: string, experimental: string, extra: Record<string, st
 
 // Inferred from 3.0.0-development.1, 0.300.0-development.1 and 1.10.0-development.1, unverified until day 0.
 // sdk-logs is 3.0.0 on main but its newest canary is still 0.300.0, a day-0 check.
+// api 1.10.0 since 3.0's instrumentation, sdk-node and otlp-transformer read the Logs API from it at runtime (2.6).
 export const target3 = versions('3.0.0', '0.300.0', {
-  '@opentelemetry/api': '1.9.1',
+  '@opentelemetry/api': '1.10.0',
 })
-
-// api when the api-logs move happens, target 3 only.
-export const target3ApiWithLogs = '1.10.0'
 
 export const target212 = versions('2.12.0', '0.223.0', {
   '@opentelemetry/sdk-logs': '0.223.0',

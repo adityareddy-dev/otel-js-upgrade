@@ -41,6 +41,7 @@ test('the version lists', () => {
   expect([STABLE.length, EXPERIMENTAL.length, REMOVED.length]).toEqual([10, 25, 8])
   expect(target3['@opentelemetry/sdk-trace']).toBe('3.0.0')
   expect(target3['@opentelemetry/sdk-node']).toBe('0.300.0')
+  expect(target3['@opentelemetry/api']).toBe('1.10.0')
   expect(target212['@opentelemetry/sdk-trace']).toBe('2.12.0')
   expect(target212['@opentelemetry/web-common']).toBe('0.223.0')
   expect(target212['@opentelemetry/sdk-logs']).toBe('0.223.0')

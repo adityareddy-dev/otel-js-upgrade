@@ -7,7 +7,7 @@ import { BLOCKERS } from '../data/blockers.js'
 import { EXPERIMENTAL_CHANGELOG, FLAG_LINKS, UPGRADE_TO_2 } from '../data/links.js'
 import { API, API_LOGS, SDK_TRACE, TRACE_SOURCES } from '../data/names.js'
 import type { FlagId, Severity, Target } from '../data/rules.js'
-import { EXPERIMENTAL, isContrib, REMOVED, releaseDate, STABLE, target212, target212Raise, target3, target3ApiWithLogs } from '../data/versions.js'
+import { EXPERIMENTAL, isContrib, REMOVED, releaseDate, STABLE, target212, target212Raise, target3 } from '../data/versions.js'
 import type { Flag } from '../engine/types.js'
 
 export interface PackageInput {
@@ -460,23 +460,24 @@ function passSync(input: PackageInput): PackageResult {
   }
 
   for (const name of missing) {
-    const version = name === API ? (t3 ? `^${target3ApiWithLogs}` : '^1.9.1') : `${common}${map[name] ?? ''}`
+    const version = name === API ? `^${map[API] ?? ''}` : `${common}${map[name] ?? ''}`
     write({ section: addTo, name }, version)
   }
   const undeclared = [...missing, ...(traceWant !== null && existingTrace.length === 0 ? [SDK_TRACE] : [])].sort()
 
   // Target 3: api follows any 3.0 line this run writes, api-logs goes once nothing imports it.
   if (t3) {
+    const apiVersion = map[API] ?? ''
     for (const e of editable.filter((x) => x.name === API)) {
       if (!wrote3) break
       const min = minVersion(e.range)
       if (min === null) {
-        leftAsIs(e, target3ApiWithLogs)
+        leftAsIs(e, apiVersion)
         continue
       }
-      if (semver.gte(min, target3ApiWithLogs)) continue
+      if (semver.gte(min, apiVersion)) continue
       const op = operatorOf(e.range)
-      set(e, `${op ?? '^'}${target3ApiWithLogs}`)
+      set(e, `${op ?? '^'}${apiVersion}`)
     }
     for (const e of editable.filter((x) => x.name === API_LOGS)) {
       if (live.has(API_LOGS)) {
