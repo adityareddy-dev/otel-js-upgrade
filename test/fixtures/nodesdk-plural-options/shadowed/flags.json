@@ -1,0 +1,10 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 5,
+    "column": 10,
+    "message": "NodeSDK is declared more than once in this file, so its options were left as they are. 3.0 reads only spanProcessors, metricReaders and logRecordProcessors (arrays).",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md"
+  }
+]

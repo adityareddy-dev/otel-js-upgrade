@@ -1,0 +1,5 @@
+{
+  "packageRanges": {
+    "@opentelemetry/sdk-node": "^0.210.0"
+  }
+}

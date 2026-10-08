@@ -1,0 +1,18 @@
+[
+  {
+    "rule": "manual-review",
+    "severity": "todo",
+    "line": 7,
+    "column": 3,
+    "message": "spanProcessor sits next to a spread this tool can't read, so it was left as it is. 3.0 reads only spanProcessors (an array). Move it by hand.",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationspanprocessor"
+  },
+  {
+    "rule": "manual-review",
+    "severity": "note",
+    "line": 9,
+    "column": 29,
+    "message": "NodeSDK gets options from ...loadConfig(), which this tool can't read. Where they set spanProcessor, metricReader or logRecordProcessor, 3.0 wants spanProcessors, metricReaders or logRecordProcessors (arrays).",
+    "link": "https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#removed-nodesdkconfigurationspanprocessor"
+  }
+]
