@@ -3,7 +3,7 @@ import { expect, test } from 'vitest'
 
 import { runFile } from '../src/engine/run.js'
 import { nodesdkPluralOptions } from '../src/rules/nodesdk-plural-options.js'
-import { checkFixture, fixtureCases } from './fixture-runner.js'
+import { checkFixture, fixtureCases, parseProblems } from './fixture-runner.js'
 
 // R2 moves no imports, so its fixtures and the NodeSDK guide pairs run with this rule alone.
 const cases = fixtureCases(fileURLToPath(new URL('./fixtures', import.meta.url))).filter(
@@ -28,6 +28,23 @@ test('two singulars deleted side by side share a comma', () => {
 test('a singular at the end on its own line takes the comma before it', () => {
   const text = `import { NodeSDK } from '@opentelemetry/sdk-node'\nnew NodeSDK({\n  spanProcessors: [a],\n  metricReaders: [b],\n  spanProcessor: c,\n  metricReader: d\n})\n`
   expect(run(text).text).toBe(`import { NodeSDK } from '@opentelemetry/sdk-node'\nnew NodeSDK({\n  spanProcessors: [a],\n  metricReaders: [b]\n})\n`)
+})
+
+test('a shorthand plural that is a const array takes the singular out', () => {
+  const text = `import { NodeSDK } from '@opentelemetry/sdk-node'\nconst spanProcessors = [a]\nnew NodeSDK({ spanProcessors, spanProcessor: b })\n`
+  const result = run(text)
+  expect(result.text).toBe(`import { NodeSDK } from '@opentelemetry/sdk-node'\nconst spanProcessors = [a]\nnew NodeSDK({ spanProcessors })\n`)
+  expect(result.flags.map((f) => `${f.rule} ${f.severity}`)).toEqual(['manual-review note'])
+})
+
+test('a value under as or satisfies keeps its text and still parses', () => {
+  const text = `import { NodeSDK } from '@opentelemetry/sdk-node'\nconst p = make()\nnew NodeSDK({ spanProcessor: p as SpanProcessor, logRecordProcessor: (q satisfies object) })\n`
+  const result = run(text)
+  expect(result.status).toBe('changed')
+  expect(result.text).toBe(
+    `import { NodeSDK } from '@opentelemetry/sdk-node'\nconst p = make()\nnew NodeSDK({ spanProcessors: p as SpanProcessor ? [p as SpanProcessor] : undefined, logRecordProcessors: (q satisfies object) ? [(q satisfies object)] : undefined })\n`,
+  )
+  expect(parseProblems('.ts', result.text)).toEqual([])
 })
 
 test('NodeSDK from another module is left alone', () => {
