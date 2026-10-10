@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2 (2026-10-10)
 
 An exported const typed as a provider now gets the `public-api` todo when its type moves (#9).
 
