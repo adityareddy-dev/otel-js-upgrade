@@ -122,6 +122,7 @@ function check(target) {
     if (['.ts', '.d.ts', '/index.ts'].some((ext) => existsSync(join(temp, `${path}${ext}`)))) continue
     const lines = [...names].map((n) => `export declare const ${n}: any\nexport type ${n} = any`)
     if (hasDefault) lines.push('declare const _default: any\nexport default _default')
+    if (lines.length === 0) lines.push('export {}')
     mkdirSync(dirname(join(temp, path)), { recursive: true })
     writeFileSync(join(temp, `${path}.d.ts`), `${lines.join('\n')}\n`)
   }
