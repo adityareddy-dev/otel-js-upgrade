@@ -72,3 +72,19 @@ test('an unreadable sdk-node range counts as below 0.204.0 on target 2.12', () =
     expect(result.flags.map((f) => f.severity), range).toEqual(['note'])
   }
 })
+
+
+test('unreadable options show the whole expression, including multiline calls', () => {
+  for (const expression of ['optionsFor(process.env.OTEL_SERVICE_NAME)', 'optionsFor(\n  process.env.OTEL_SERVICE_NAME\n)']) {
+    const text = `import { NodeSDK } from '@opentelemetry/sdk-node'\nnew NodeSDK(${expression})\n`
+    const result = run(text)
+    expect(result.status).toBe('unchanged')
+    expect(result.text).toBe(text)
+    expect(result.flags).toHaveLength(1)
+    expect(result.flags[0]).toMatchObject({
+      rule: 'manual-review',
+      severity: 'note',
+      message: `NodeSDK gets options from ${expression}, which this tool can't read. Where they set spanProcessor, metricReader or logRecordProcessor, 3.0 wants spanProcessors, metricReaders or logRecordProcessors (arrays).`,
+    })
+  }
+})

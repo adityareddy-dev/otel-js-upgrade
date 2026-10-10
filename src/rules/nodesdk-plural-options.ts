@@ -152,7 +152,7 @@ function deletion(text: string, property: SgNode, deleted: ReadonlySet<number>):
 
 // Options this tool can't see into get a note asking for the three keys to be checked.
 function unreadable(ctx: FileContext, at: SgNode): void {
-  const shown = at.text().split(/\r?\n/)[0]?.slice(0, 40) ?? ''
+  const shown = at.text()
   ctx.flag(
     'manual-review',
     at,

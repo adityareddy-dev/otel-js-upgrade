@@ -225,6 +225,12 @@ export const sdkTraceImports: Rule = {
         const callee = expr.field('constructor')
         if (callee?.kind() === 'identifier' && names.has(callee.text())) publicApi(exportedProvider(expr, exported), callee.text())
       }
+      for (const declarator of ctx.tree.findAll({ rule: { kind: 'variable_declarator' } })) {
+        const name = declarator.field('name')
+        const type = declarator.field('type')?.namedChildren().find((t) => t.kind() === 'type_identifier' && names.has(t.text()))
+        if (name?.kind() !== 'identifier' || !type) continue
+        if (isExportedStatement(declarator) || (!enclosingFunction(declarator) && exported.has(name.text()))) publicApi(name, type.text())
+      }
       // An exported function whose return type names the provider returns one, whatever its body does.
       for (const fn of ctx.tree.findAll(kindRule(ctx.lang, [...FUNCTIONS]))) {
         const type = fn.field('return_type')?.findAll({ rule: { kind: 'type_identifier' } }).find((t) => names.has(t.text()))

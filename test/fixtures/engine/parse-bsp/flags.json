@@ -4,6 +4,6 @@
     "severity": "todo",
     "line": 2,
     "column": 54,
-    "message": "the parser can't read new BatchSpanProcessor({ exporter: e, ma at 2:54, the file may be valid TypeScript. Migrate it by hand or pass --ignore."
+    "message": "the parser can't read new BatchSpanProcessor({ exporter: e, maxQueueSize: 1 ); at 2:54. The file was left unchanged. This may be unsupported syntax or a syntax error. Migrate it by hand or pass --ignore."
   }
 ]

@@ -1,5 +1,6 @@
 import { Lang } from '@ast-grep/napi'
 import { describe, expect, test } from 'vitest'
+import ts from 'typescript'
 
 import { createContext } from '../src/engine/context.js'
 import { decode } from '../src/engine/read.js'
@@ -151,13 +152,13 @@ describe('broken trees', () => {
     expect(r.status).toBe('skipped')
     expect(r.flags.map((f) => [f.rule, f.line, f.column])).toEqual([['manual-review', 2, 9]])
     expect(r.flags[0]!.message).toBe(
-      "the parser can't read foo(a, b; at 2:9, the file may be valid TypeScript. Migrate it by hand or pass --ignore.",
+      "the parser can't read foo(a, b; at 2:9. The file was left unchanged. This may be unsupported syntax or a syntax error. Migrate it by hand or pass --ignore.",
     )
     expect(r.reason).toBe(r.flags[0]!.message)
     expect(r.modules).toEqual(['@opentelemetry/sdk-trace-base'])
     const gap = runFile({ path: 'a.ts', text: "import { A } from '@opentelemetry/sdk-trace-base'\nexport type * from './x'\n", target: '3', rules: [] })
     expect(gap.status).toBe('skipped')
-    expect(gap.reason).toMatch(/^the parser can't read export type \* from '\.\/x' at 2:8, /)
+    expect(gap.reason).toMatch(/^the parser can't read export type \* from '\.\/x' at 2:8\. /)
   })
 })
 
@@ -648,4 +649,30 @@ describe('pass A', () => {
     ].join('\n')
     expect(run(text).modules).toEqual(['@opentelemetry/api', '@opentelemetry/sdk-trace-base'])
   })
+})
+
+
+test('parse diagnostics keep the whole source line', () => {
+  const line = 'export const processorsForEveryEnvironment = [new BatchSpanProcessor(,'
+  const text = `import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';\n\n${line}\n`
+  const result = runFile({ path: 'broken.ts', text, target: '3', rules: [] })
+  expect(result.status).toBe('skipped')
+  expect(result.text).toBe(text)
+  expect(result.flags).toHaveLength(1)
+  expect(result.flags[0]).toMatchObject({ rule: 'manual-review', severity: 'todo', line: 3, column: 1 })
+  expect(result.reason).toContain(line)
+})
+
+
+test('typeof import as a type argument is a grammar limitation, not a missing token check', () => {
+  const text = "const value = { ...(await original<typeof import('./source')>()) };"
+  const file = ts.createSourceFile('a.ts', text, ts.ScriptTarget.Latest)
+  expect((file as unknown as { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics).toEqual([])
+  for (const lang of [Lang.TypeScript, Lang.Tsx]) {
+    const root = parseAs(lang, text)
+    expect(root.find({ rule: { kind: 'ERROR' } })?.text()).toBe('>()')
+    expect(brokenAt(root)).not.toBeNull()
+    expect(brokenAt(parseAs(lang, text.replace("typeof import('./source')", 'Source')))).toBeNull()
+    expect(brokenAt(parseAs(lang, "type Source = typeof import('./source');"))).toBeNull()
+  }
 })

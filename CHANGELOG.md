@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+An exported const typed as a provider now gets the `public-api` todo when its type moves (#9).
+
+The NodeSDK options note shows the whole expression and the parser todo shows the whole source line (#10). The parser todo now says the file was left unchanged and may use unsupported syntax (#11). The installed parser still cannot read `typeof import()` as a call type argument, so that file stays unchanged.
+
 ## 0.1.1 (2026-10-08)
 
 A missing package is now added to package.json only when a removed package it lists used to install it or when the rewrite wrote that import itself (the api is always added), anything else the code imports gets a note naming the file where 0.1.0 quietly added the line, and added packages go in the same section as the package they replace (#5, #6). A plain comment naming a removed package no longer keeps it in package.json, though a JSDoc `import()` or `@import` of one still does and gets a todo at the line (#3). An exported factory that returns the provider from a const, or names it as its return type, now gets the `public-api` todo (#4), and the runtime `register()` todo ends on a whole word (#7).

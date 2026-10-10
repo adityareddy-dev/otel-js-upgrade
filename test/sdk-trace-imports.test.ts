@@ -261,3 +261,34 @@ describe('keep list', () => {
     )
   })
 })
+
+
+test('typed provider exports keep aliases and do not duplicate constructor warnings', () => {
+  for (const target of TARGETS) {
+    for (const [name, module] of [['NodeTracerProvider', 'sdk-trace-node'], ['WebTracerProvider', 'sdk-trace-web'], ['BasicTracerProvider', 'sdk-trace-base']]) {
+      const text = `import { ${name} as Provider } from '@opentelemetry/${module}'\nexport const provider: Provider = new Provider()\n`
+      const result = run('a.ts', text, registry, target)
+      expect(result.status).toBe('changed')
+      expect(result.flags.filter((f) => f.rule === 'public-api')).toHaveLength(1)
+      expect(result.text).toContain('TracerProvider as Provider')
+      expect(result.text).toContain('provider: Provider = new Provider()')
+    }
+  }
+})
+
+test('typed providers warn on local exports and leave private or pinned providers alone', () => {
+  const prefix = "import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node'\n"
+  for (const target of TARGETS) {
+    const local = run('a.ts', prefix + 'const provider: NodeTracerProvider = make()\nexport { provider }\n', registry, target)
+    expect(local.flags.filter((f) => f.rule === 'public-api')).toHaveLength(1)
+    for (const body of [
+      'const provider: NodeTracerProvider = make()\n',
+      'export const factory: () => NodeTracerProvider = make\n',
+      'export const provider: Other.NodeTracerProvider = make()\n',
+      'const provider = other()\nexport { provider }\nfunction hidden() { const provider: NodeTracerProvider = make() }\n',
+      'class CustomProvider extends NodeTracerProvider {}\nexport const provider: NodeTracerProvider = make()\n',
+    ]) {
+      expect(run('a.ts', prefix + body, registry, target).flags.filter((f) => f.rule === 'public-api'), body).toEqual([])
+    }
+  }
+})

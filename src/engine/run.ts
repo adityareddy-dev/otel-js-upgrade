@@ -134,9 +134,9 @@ export function runFile(input: RunInput): FileResult {
 
   if (parsed.broken) {
     const index = parsed.broken.range().start.index
-    const near = text.slice(text.lastIndexOf('\n', index - 1) + 1).split(/\r?\n/)[0]!.trim().slice(0, 40)
+    const near = text.slice(text.lastIndexOf('\n', index - 1) + 1).split(/\r?\n/)[0]!.trim()
     const { line, column } = ctx.locate(index)
-    const reason = `the parser can't read ${near} at ${line}:${column}, the file may be valid TypeScript. Migrate it by hand or pass --ignore.`
+    const reason = `the parser can't read ${near} at ${line}:${column}. The file was left unchanged. This may be unsupported syntax or a syntax error. Migrate it by hand or pass --ignore.`
     ctx.flag('manual-review', index, reason)
     return done({ ...skipped(reason), flags: [...ctx.flags] })
   }
