@@ -1,6 +1,6 @@
 import { Lang, type SgNode } from '@ast-grep/napi'
 
-import { CONTEXT_ASYNC_HOOKS, SDK_TRACE, T6, TRACE_SOURCES, traceName, type ImportKind } from '../data/names.js'
+import { CONTEXT_ASYNC_HOOKS, OTLP_EXPORTER_BASE, OTLP_NODE_CONFIG, OTLP_NODE_HTTP, SDK_TRACE, T6, TRACE_SOURCES, traceName, type ImportKind } from '../data/names.js'
 import { TARGETS, type RuleId } from '../data/rules.js'
 import { splice } from '../engine/splice.js'
 import { continues } from '../engine/style.js'
@@ -37,6 +37,9 @@ interface Destination {
 // Where a named binding goes, or null when it stays on its module under its own name.
 export function destination(ctx: FileContext, b: Binding): Destination | null {
   if (b.imported === null) return null
+  if (ctx.target === '3' && b.module === OTLP_EXPORTER_BASE && b.imported === OTLP_NODE_CONFIG && hasMoved(ctx, 'otlp-exporter-base')) {
+    return { module: OTLP_NODE_HTTP, name: OTLP_NODE_CONFIG, rule: 'otlp-exporter-base' }
+  }
   if (isTraceSource(b.module)) {
     if (!hasMoved(ctx, 'sdk-trace-imports')) return null
     const entry = traceName(b.module, b.imported)
@@ -441,7 +444,9 @@ export const imports: Rule = {
           ctx.flag(
             'public-api',
             declaration,
-            `This file re-exports names from ${first.module}, which now come from ${plan.newModule} under the same exported names. Modules that import them from here get the 3.0 classes.`,
+            plan.rule === 'otlp-exporter-base'
+              ? `This file re-exports ${OTLP_NODE_CONFIG} from ${plan.newModule} under the same exported name. It remains a type, not a runtime export.`
+              : `This file re-exports names from ${first.module}, which now come from ${plan.newModule} under the same exported names. Modules that import them from here get the 3.0 classes.`,
           )
         }
       }

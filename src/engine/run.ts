@@ -1,6 +1,6 @@
 import type { SgNode } from '@ast-grep/napi'
 
-import { API_LOGS, CONTEXT_ASYNC_HOOKS, CORE, SDK_LOGS, SDK_NODE, SDK_TRACE_WEB, T2, T4, T5, T6, TRACE_SOURCES } from '../data/names.js'
+import { API_LOGS, CONTEXT_ASYNC_HOOKS, CORE, OTLP_EXPORTER_BASE, OTLP_NODE_CONFIG, SDK_LOGS, SDK_NODE, SDK_TRACE_WEB, T2, T4, T5, T6, TRACE_SOURCES } from '../data/names.js'
 import { RULE_IDS, type RuleId, type Target } from '../data/rules.js'
 import { REMOVED } from '../data/versions.js'
 import { createContext, type Engine } from './context.js'
@@ -64,9 +64,10 @@ function laterNames(module: string, target: Target): readonly string[] | 'all' {
 }
 
 // Names a 0.1.0 rule moves or renames, per module.
-function movedNames(module: string): readonly string[] | 'all' {
+function movedNames(module: string, target: Target): readonly string[] | 'all' {
   if ((TRACE_SOURCES as readonly string[]).includes(module)) return 'all'
   if (module === CONTEXT_ASYNC_HOOKS) return Object.keys(T6[CONTEXT_ASYNC_HOOKS]!)
+  if (target === '3' && module === OTLP_EXPORTER_BASE) return [OTLP_NODE_CONFIG]
   return []
 }
 
@@ -88,7 +89,7 @@ function pinOld(ctx: Engine) {
   }
   for (const b of ctx.original.bindings) {
     const later = laterNames(b.module, ctx.target)
-    const moved = movedNames(b.module)
+    const moved = movedNames(b.module, ctx.target)
     if (b.form === 'default') {
       ctx.flag(
         'manual-review',
