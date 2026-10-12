@@ -3,6 +3,7 @@ import { asyncHooksContextManager } from './async-hooks-context-manager.js'
 import { flags } from './flags.js'
 import { imports } from './imports.js'
 import { nodesdkPluralOptions } from './nodesdk-plural-options.js'
+import { otlpExporterBase } from './otlp-exporter-base.js'
 import { register } from './register.js'
 import { sdkTraceImports } from './sdk-trace-imports.js'
 import { spanProcessorOptions } from './span-processor-options.js'
@@ -16,5 +17,6 @@ export const RULES: readonly Rule[] = [
   register,
   sdkTraceImports,
   asyncHooksContextManager,
+  otlpExporterBase,
   imports,
 ]

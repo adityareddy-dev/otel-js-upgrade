@@ -16,6 +16,9 @@ export const SDK_METRICS = '@opentelemetry/sdk-metrics'
 export const RESOURCES = '@opentelemetry/resources'
 export const WEB_COMMON = '@opentelemetry/web-common'
 export const CONTEXT_ASYNC_HOOKS = '@opentelemetry/context-async-hooks'
+export const OTLP_EXPORTER_BASE = '@opentelemetry/otlp-exporter-base'
+export const OTLP_NODE_HTTP = `${OTLP_EXPORTER_BASE}/node-http`
+export const OTLP_NODE_CONFIG = 'OTLPExporterNodeConfigBase'
 
 export interface NameEntry {
   readonly kind: ImportKind

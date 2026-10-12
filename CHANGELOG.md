@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+On target `3`, move named `OTLPExporterNodeConfigBase` imports and re-exports to `@opentelemetry/otlp-exporter-base/node-http`, following upstream #7172. Preserve aliases and root exports such as `CompressionAlgorithm`; target `2.12` stays unchanged. Namespace access and runtime loads of this type require manual review.
+
 ## 0.1.2 (2026-10-10)
 
 An exported const typed as a provider now gets the `public-api` todo when its type moves (#9).

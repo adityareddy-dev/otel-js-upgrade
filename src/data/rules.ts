@@ -10,6 +10,7 @@ export const RULE_IDS = [
   'register',
   'sdk-trace-imports',
   'async-hooks-context-manager',
+  'otlp-exporter-base',
   'package-json',
 ] as const
 export type RuleId = (typeof RULE_IDS)[number]
