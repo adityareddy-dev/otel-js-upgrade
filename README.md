@@ -1,104 +1,198 @@
+<div align="center">
+
 # otel-js-upgrade
 
-Moves an OpenTelemetry JavaScript setup to SDK 3.0. Run it in the repo, read the dry run, then run it again with `--write`.
+**A reviewable diff for your OpenTelemetry JavaScript migration.**
 
+Preview the code moves, review what needs attention, and apply changes when you're ready.
+
+`Dry run by default` · `Explicit --write` · `JavaScript & TypeScript`
+
+[Quick start](#quick-start) · [Targets](#targets) · [Coverage](#what-it-rewrites) · [Limitations](#current-limitations) · [CLI reference](#cli-reference)
+
+</div>
+
+![Illustrated workflow: preview with target 2.12, review a span processor diff, then explicitly apply with --write.](assets/otel-js-upgrade-demo.gif)
+
+<p align="center"><em>Illustrated demo with example snippets; this is not a recording of real CLI output.</em></p>
+
+> **Current release:** target `2.12` can apply the supported migration today. Target `3` is a preview: dry runs and `--check` work, but `3 --write` is blocked until a tool release enables writes after SDK 3.0.0 is released.
+
+## Quick start
+
+Run from the repository you want to migrate. The tool needs **Node 20.19 or newer**.
+
+**1. Preview.** No files are written.
+
+```sh
+npx otel-js-upgrade 2.12
 ```
-npx otel-js-upgrade 3
-npx otel-js-upgrade 3 --write
+
+**2. Review.** Read the proposed diffs, todos, and notes. Resolve anything that needs manual attention.
+
+**3. Apply.** Start with a clean Git tree, then explicitly opt in to writing.
+
+```sh
+npx otel-js-upgrade 2.12 --write
 ```
 
-Until SDK 3.0.0 is released, `3 --write` stops and points you at `2.12 --write`, see Targets.
+**4. Validate.** Follow the reported package-manager install instructions to update your lockfile, inspect the final diff, and run your project's checks.
 
-The default is a dry run. Nothing is written until you say `--write`, and `--write` refuses to run on a dirty git tree unless you add `--allow-dirty`. Every file it changes is parsed again afterwards, and a file that doesn't parse is left exactly as it was and reported with exit code 3.
+By default, `--write` refuses uncommitted changes under the selected paths. `--allow-dirty` overrides that protection. Each rewritten code file is parsed again before it is written; if the rewritten file fails to parse, it stays unchanged and the run reports exit code `3`. Other files may still be processed; this is a per-file safeguard, not a transaction across the whole repository.
+
+### A small example
+
+Before:
+
+```ts
+import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
+
+const processor = new BatchSpanProcessor(exporter, config);
+```
+
+After:
+
+```ts
+import { BatchSpanProcessor } from '@opentelemetry/sdk-trace';
+
+const processor = new BatchSpanProcessor({ exporter, ...config });
+```
+
+The tool handles supported code moves and flags uncertain cases for review. A successful run can still contain todos; check the report before treating the migration as complete.
 
 ## Targets
 
-```
+```sh
 npx otel-js-upgrade <target> [paths...] [options]
 ```
 
-`3` moves you to SDK 3.0. `2.12` does only the code moves that already work on the 2.12 packages, so you can land the code change now and bump the packages later. Both run the same rules on your code, the difference is what happens to package.json.
+| Target | Code changes | package.json and write behavior |
+| --- | --- | --- |
+| `2.12` | Applies the supported moves that already work with SDK 2.12 packages. | Replaces `@opentelemetry/sdk-trace-base`, `sdk-trace-node`, and `sdk-trace-web` with `@opentelemetry/sdk-trace`; raises `core` and `resources` to `2.12.0`. Supports `--write`. |
+| `3` | Previews the SDK 3.0 migration using the same code rules. | Currently leaves package.json alone and reports a todo. `3 --write` stops with exit code `2` and writes nothing. A later tool release will enable it after SDK 3.0.0 is released. |
 
-Until SDK 3.0.0 is released, target `3` is a preview. A dry run or `--check` shows what will change and a todo says package.json is left alone, and `3 --write` stops with exit code 2, since package.json can't get the final version numbers yet and the rewritten code would import `@opentelemetry/sdk-trace` with no line there to install it. A later release lifts that once 3.0.0 is out. Target `2.12` moves `@opentelemetry/sdk-trace-base`, `sdk-trace-node` and `sdk-trace-web` to `@opentelemetry/sdk-trace` and raises `core` and `resources` to 2.12.0.
+`3.0` is also accepted as target `3`. The write block prevents rewritten code from importing `@opentelemetry/sdk-trace` without a matching dependency entry and avoids assigning final SDK 3 package versions before release.
 
-Paths default to `.`. `node_modules`, build output and anything git ignores are skipped.
+Paths default to `.`. `node_modules`, build output, and anything Git ignores are skipped.
+
+```sh
+# Preview the future SDK 3 migration
+npx otel-js-upgrade 3
+
+# Scope a dry run to selected directories
+npx otel-js-upgrade 2.12 src packages
+
+# Fail CI when a supported change is pending
+npx otel-js-upgrade 2.12 --check
+```
+
+| Requirement | Version |
+| --- | --- |
+| Running this codemod | Node `20.19+` |
+| Running SDK 3.0 itself | Node `22.15+` |
+
+You can run the codemod before upgrading Node. On older Node versions, the tool reminds you of SDK 3.0's requirement.
 
 ## What it rewrites
 
-- `new BatchSpanProcessor(exporter, config)` and `new SimpleSpanProcessor(exporter)` become the options object form, `new BatchSpanProcessor({ exporter, ...config })`.
-- The `NodeSDK` options `spanProcessor`, `metricReader` and `logRecordProcessor` become their plural forms.
-- `provider.register()` and `provider.register({ ... })` become the global setters from `@opentelemetry/api`, in the order the 2.12 code ran them, for Node and for the browser. The arguments you passed stay as they were.
-- Imports from `sdk-trace-base`, `sdk-trace-node` and `sdk-trace-web` move to `@opentelemetry/sdk-trace`. `BasicTracerProvider`, `NodeTracerProvider` and `WebTracerProvider` become `TracerProvider`, and the renamed config types go with them. Names the new package doesn't have stay on the old one and get a flag.
-- `AsyncHooksContextManager` becomes `AsyncLocalStorageContextManager`.
-- package.json, as above.
+| Area | Supported change |
+| --- | --- |
+| Span processors | `new BatchSpanProcessor(exporter, config)` becomes `new BatchSpanProcessor({ exporter, ...config })`; `new SimpleSpanProcessor(exporter)` becomes `new SimpleSpanProcessor({ exporter })`. |
+| `NodeSDK` options | `spanProcessor`, `metricReader`, and `logRecordProcessor` become their plural forms. |
+| Provider registration | Supported `provider.register()` and `provider.register({ ... })` calls become global setters from `@opentelemetry/api`, preserving arguments and the order used by the 2.12 implementation for Node and browser setups. |
+| Trace imports and types | Imports from `sdk-trace-base`, `sdk-trace-node`, and `sdk-trace-web` move to `@opentelemetry/sdk-trace`. `BasicTracerProvider`, `NodeTracerProvider`, and `WebTracerProvider` become `TracerProvider`, with their renamed config types. Names absent from the new package stay on the old package and get a flag. |
+| OTLP Node configuration (target `3` only) | Named `OTLPExporterNodeConfigBase` imports and re-exports move from `@opentelemetry/otlp-exporter-base` to its public `/node-http` entry, preserving aliases and shared root exports such as `CompressionAlgorithm`. Target `2.12` stays unchanged. |
+| Context managers | `AsyncHooksContextManager` becomes `AsyncLocalStorageContextManager`. |
+| Dependencies | package.json changes follow the [target rules](#targets). |
 
-It handles the import shapes most code uses: `import { A }`, `import type { A }`, `const { A } = require()`, `const { A } = await import()`, `export { A } from`, and side-effect imports. Rewritten declarations stay where they are, with their quotes, semicolons and indentation. A new ES import goes after the last OpenTelemetry import, a new require after the first OpenTelemetry require.
+<details>
+<summary><strong>Supported import shapes and formatting</strong></summary>
+
+Supported shapes include:
+
+```ts
+import { A } from '...';
+import type { A } from '...';
+const { A } = require('...');
+const { A } = await import('...');
+export { A } from '...';
+import '...';
+```
+
+Rewritten declarations stay where they are, preserving their quotes, semicolons, and indentation. A new ES import goes after the last OpenTelemetry import; a new require goes after the first OpenTelemetry require.
+
+</details>
 
 ## What it flags
 
-Anything it can't rewrite with certainty is reported with the file, the line and a link into the migration guide, and the code is left alone. Flags are a `todo` when 3.0 won't work until you act, a `note` when it will but you should know.
+When a detected case cannot be rewritten with certainty, the tool leaves that code alone and reports the file, line, and a migration-guide link.
 
-The todos cover a package still on SDK 1.x (the whole package is refused), the Jaeger propagator and exporter, environment variables the SDK 3.0 provider no longer reads, `forceFlushTimeoutMillis` and `generalLimits`, a `register()` it couldn't expand, a type with no 3.0 equivalent, a dependency that pins the 2.x SDK, deep imports into a package's build output, the removed OpenTracing and OpenCensus shims, a `.vue` or `.svelte` file that names a removed package, and any import shape it doesn't rewrite yet.
+| Severity | Meaning |
+| --- | --- |
+| `todo` | Action is needed before the SDK 3.0 migration will work. |
+| `note` | The change can work, but there is something to review or know. |
 
-The notes cover a re-export of a renamed name (someone downstream sees the change), `instanceof` on a renamed provider class (it matches more now), a global setter you already call, and contrib packages, whose 3.0-ready versions aren't known yet.
+**Todos cover:** packages still on SDK 1.x (the whole package is refused); the Jaeger propagator and exporter; environment variables no longer read by the SDK 3.0 provider; `forceFlushTimeoutMillis` and `generalLimits`; `register()` calls that cannot be expanded; types without a 3.0 equivalent; dependencies that pin SDK 2.x; deep imports into package build output; the removed OpenTracing and OpenCensus shims; `.vue` or `.svelte` files naming removed packages; and unsupported import shapes.
 
-## What it leaves alone for now
+**Notes cover:** re-exports of renamed names that affect downstream users; `instanceof` checks on renamed provider classes that now match more broadly; global setters already called; and contrib packages whose 3.0-ready versions are not yet known.
 
-0.1.0 is small on purpose. These are detected and flagged `manual-review`, so nothing goes quietly, but they aren't rewritten yet:
+## Current limitations
 
-- Namespace and default imports (`import * as sdk`, `const sdk = require()`), `import x = require()`, `require('m').A` inline, `import().then(...)`, `export *`, and `import('m').A` in a type position.
-- The `sdk-node` namespaces (`opentelemetry.tracing.X`), the web-common utilities, the removed `core` helpers, and on target `3` the `sdk-logs` type aliases and the api-logs merge into `@opentelemetry/api`.
+Coverage is deliberately bounded. Some cases get an explicit `manual-review` flag; others are not detected yet.
 
-`register()` in a file where every OpenTelemetry module comes in through `await import()` isn't expanded either, it gets the same todo as any `register()` it couldn't expand.
+### Detected, but not rewritten
 
-These aren't looked at yet:
+- Namespace and default imports (`import * as sdk`, `const sdk = require()`), `import x = require()`, inline `require('m').A`, `import().then(...)`, `export *`, and `import('m').A` in a type position.
+- `sdk-node` namespaces such as `opentelemetry.tracing.X`, web-common utilities, removed `core` helpers, and, on target `3`, `sdk-logs` type aliases and the api-logs merge into `@opentelemetry/api`.
+- `register()` in files where every OpenTelemetry module comes through `await import()`; it receives the same todo as other calls that cannot be expanded.
+- `new BatchSpanProcessor(exporter, null)` and `new BatchSpanProcessor(exporter, void 0)`; these are flagged instead of rewritten.
+- Namespace access and runtime `require()`/`import()` loads of `OTLPExporterNodeConfigBase` on target `3`; this configuration type needs manual review rather than a runtime value rewrite.
 
-- Merging new names into an import you already have. 0.1.0 adds a declaration instead.
-- `HttpInstrumentationConfig.serverName`, which 3.0 removed.
-- Node version checks on `engines`, Dockerfiles and `.nvmrc`, the Prometheus exporter's new default host, and the boolean `setGlobalLoggerProvider` return.
-- Reading `node_modules` for third party packages that pin the 2.x SDK. 0.1.0 checks a built-in list instead.
+### Not detected or handled yet
 
-Known limits:
+- Merging new names into an existing import. The tool adds a declaration instead.
+- `HttpInstrumentationConfig.serverName`, which SDK 3.0 removed.
+- Node version checks in `engines`, Dockerfiles, and `.nvmrc`; the Prometheus exporter's new default host; and the boolean `setGlobalLoggerProvider` return.
+- Reading `node_modules` to find third-party packages that pin SDK 2.x. The tool checks a built-in list instead.
+- `NodeSDK` options written with computed keys, such as `['spanProcessor']: p`; these are left alone.
 
-- `new BatchSpanProcessor(exporter, null)` and `new BatchSpanProcessor(exporter, void 0)` are flagged, not rewritten.
-- A `NodeSDK` option written as a computed key (`['spanProcessor']: p`) is left alone.
-- An exported span processor subclass with no constructor, and a re-exported provider class, get a note rather than a todo.
+An exported span processor subclass without a constructor and a re-exported provider class receive a **note**, rather than a todo. The installed parser also cannot read some syntax, including `typeof import()` used as a call type argument; affected files stay unchanged with a parser todo.
 
-## Options
+## CLI reference
 
-```
---write                 apply the changes (default is a dry run that writes nothing)
---json                  print one JSON report on stdout and nothing else
---check                 dry run that exits 1 when any change is pending (for CI)
---only <ids>            run only these rule ids (comma list, repeatable)
---skip <ids>            skip these rule ids (comma list, repeatable)
---ignore <glob>         extra ignore glob (repeatable)
---no-package-json       leave package.json files unchanged (same as --skip package-json)
---allow-dirty           let --write run when git reports uncommitted changes under the paths
---verbose               also list unchanged files and the reason a file was skipped
---no-color              no colour (also off when NO_COLOR is set or stdout isn't a TTY)
---version, --help
-```
+| Option | Behavior |
+| --- | --- |
+| `--write` | Apply changes. Without it, the default is a dry run that writes nothing. |
+| `--json` | Print one JSON report on stdout and nothing else. |
+| `--check` | Dry run; exit `1` if any change is pending. Intended for CI. |
+| `--only <ids>` | Run only these rule IDs; comma-separated, repeatable. |
+| `--skip <ids>` | Skip these rule IDs; comma-separated, repeatable. |
+| `--ignore <glob>` | Add an ignore glob; repeatable. |
+| `--no-package-json` | Leave package.json unchanged; equivalent to `--skip package-json`. |
+| `--allow-dirty` | Allow `--write` with uncommitted changes under the selected paths. |
+| `--verbose` | Also list unchanged files and reasons files were skipped. |
+| `--no-color` | Disable color. Color is also off when `NO_COLOR` is set or stdout is not a TTY. |
+| `--version`, `--help` | Show the version or usage. |
 
-Rule ids: `span-processor-options`, `nodesdk-plural-options`, `register`, `sdk-trace-imports`, `async-hooks-context-manager`, `package-json`. The first, third and fourth only work together, naming one runs all three.
+Rule IDs: `span-processor-options`, `nodesdk-plural-options`, `register`, `sdk-trace-imports`, `otlp-exporter-base` (target `3` only), `async-hooks-context-manager`, `package-json`.
 
-## Exit codes
+`span-processor-options`, `register`, and `sdk-trace-imports` operate together; selecting one runs all three.
+
+### Exit codes
 
 | Code | Meaning |
 | --- | --- |
-| 0 | The run finished, with or without changes and flags. |
-| 1 | `--check` and at least one change is pending. Flags alone don't set it. |
-| 2 | Usage error, the parser couldn't load, `3 --write` before SDK 3.0.0 is released, or `--write` refused on a dirty tree. Nothing was written. |
-| 3 | A rewritten file failed the parse check, a rule threw, or a file couldn't be written. Those files were left as they were and the rest were processed. A package.json is written last, and only when every file under it was, otherwise it stays as it was with a todo. |
+| `0` | The run finished, with or without changes and flags. This does not mean every todo is resolved. |
+| `1` | `--check` found at least one pending change. Flags alone do not trigger this code. |
+| `2` | Usage error, parser load failure, `3 --write` while SDK 3 writes are blocked, or `--write` refused a dirty tree. Nothing was written. |
+| `3` | A rewritten file failed parsing, a rule threw, or a file could not be written. Those files remain unchanged; the rest are processed. package.json is written last, only when every file under it was processed successfully; otherwise it remains unchanged with a todo. |
 
-## Node
+## Why this exists
 
-The codemod runs on Node 20.19 and up, so you can migrate before you upgrade Node. SDK 3.0 itself needs Node 22.15 or newer, and the tool reminds you of that on older Node.
+A migration guide gives you a checklist. A codemod gives you a diff to review. The supported rewrites were checked against the 2.12.0 source and maintainers' migrations of real code. When the guide and source disagreed, source behavior took precedence.
 
-## Why
-
-The migration guide is right about most things and wrong in a few places, and a codemod gives you the diff instead of a checklist. Everything this tool rewrites was checked against the 2.12.0 source and the maintainers' own migrations of real code, not against the guide's prose. Where the guide and the source disagreed, the source won.
+See the [changelog](CHANGELOG.md) for release details and [open an issue](https://github.com/adityareddy-dev/otel-js-upgrade/issues) for a migration case the tool does not handle.
 
 ## License
 
-Apache-2.0
+[Apache-2.0](LICENSE)
