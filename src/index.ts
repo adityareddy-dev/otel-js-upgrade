@@ -184,7 +184,7 @@ function pickRules(options: RunOptions): Picked {
   const only = ids(options.only)
   const skip = ids(options.skip)
   for (const id of [...only, ...skip]) {
-    if ((LATER_RULE_IDS as readonly string[]).includes(id)) return { error: `${id} comes in 0.2` }
+    if ((LATER_RULE_IDS as readonly string[]).includes(id)) return { error: `${id} is not supported yet` }
     if (!(RULE_IDS as readonly string[]).includes(id)) return { error: `unknown rule id ${id}` }
   }
   const selected = new Set<RuleId>(only.length > 0 ? (only as RuleId[]) : RULE_IDS)

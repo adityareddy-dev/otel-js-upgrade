@@ -1,13 +1,19 @@
-// Compiles every .ts expected output against the real packages: target 2.12 against the 2.12.0 line with api 1.9.1,
-// target 3 against the canary 3.0 line with api 1.10.0-development.1. Run after npm run build, it reads dist/data.
-// Usage: node scripts/typecheck-expected.mjs [2.12|3]
+// Compiles expected outputs against target 2.12 or exact SDK 3 finals. --rc selects the pinned rc.0 packages.
+// Usage: node scripts/typecheck-expected.mjs [2.12|3] [--final|--rc], after npm run build.
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, posix, relative, resolve } from 'node:path'
+import { modeFromArgs, packageVersions } from './sdk-release.mjs'
 
 const root = resolve(import.meta.dirname, '..')
-const { EXPERIMENTAL, REMOVED, STABLE } = await import(new URL('../dist/data/versions.js', import.meta.url).href)
+const { REMOVED, target212, target3 } = await import(new URL('../dist/data/versions.js', import.meta.url).href)
+const args = process.argv.slice(2)
+const mode = modeFromArgs(args)
+const targets = args.filter((arg) => !['--rc', '--final'].includes(arg))
+if (targets.length > 1 || targets.some((target) => !['2.12', '3'].includes(target))) throw new Error('Usage: typecheck-expected.mjs [2.12|3] [--final|--rc]')
+if (targets.length === 0) targets.push('2.12', '3')
+const sdk3 = packageVersions(target3, mode)
 const fixtures = join(root, 'test/fixtures')
 const shim = join(root, 'test/typecheck/shim.d.ts')
 const tsc = join(root, 'node_modules/typescript/bin/tsc')
@@ -91,12 +97,7 @@ function modulesOf(texts) {
 }
 
 function versionFor(name, target) {
-  if (name === '@opentelemetry/api') return target === '3' ? '1.10.0-development.1' : '1.9.1'
-  if (REMOVED.includes(name) || !name.startsWith('@opentelemetry/')) return 'latest'
-  if (target === '3' && (STABLE.includes(name) || EXPERIMENTAL.includes(name))) return 'canary'
-  if (name === '@opentelemetry/sdk-logs' || EXPERIMENTAL.includes(name)) return '0.223.0'
-  if (STABLE.includes(name)) return '2.12.0'
-  return 'latest'
+  return (target === '3' ? sdk3 : target212)[name] ?? 'latest'
 }
 
 function check(target) {
@@ -162,6 +163,8 @@ function check(target) {
     )}\n`,
   )
 
+  // Retained removed packages intentionally have old peers. This fixture-only install is not strict compatibility proof.
+  console.log(`target ${target}${target === '3' ? ` ${mode}` : ''}: fixture coverage uses legacy peers and stubs, retained packages: ${otel.filter((name) => REMOVED.includes(name)).join(' ')}`)
   // npm is a .cmd file on Windows, which only runs through a shell.
   const install = spawnSync('npm install --no-audit --no-fund --ignore-scripts --legacy-peer-deps', { cwd: temp, encoding: 'utf8', shell: true })
   if (install.status !== 0) throw new Error(`target ${target}: npm install failed\n${install.stderr}`)
@@ -177,7 +180,6 @@ function check(target) {
   return true
 }
 
-const targets = process.argv[2] ? [process.argv[2]] : ['2.12', '3']
 const failed = targets.filter((t) => !check(t))
 for (const name of excluded.keys()) if (!existsSync(join(fixtures, name.replace(/@[\d.]+$/, '')))) console.log(`exclude.txt names ${name}, which doesn't exist`)
 if (failed.length > 0) {

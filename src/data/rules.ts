@@ -15,7 +15,7 @@ export const RULE_IDS = [
 ] as const
 export type RuleId = (typeof RULE_IDS)[number]
 
-// Named so --only and --skip can say they wait for 0.2.
+// Named so --only and --skip can explain unsupported rules.
 export const LATER_RULE_IDS = [
   'sdk-node-namespaces',
   'web-common-utils',

@@ -48,7 +48,7 @@ test.each([
   [['9'], 'unknown target 9'],
   [['3', '--bogus'], "Unknown option '--bogus'"],
   [['3', '--check', '--write'], '--check and --write'],
-  [['3', '--only', 'api-logs'], 'api-logs comes in 0.2'],
+  [['3', '--only', 'api-logs'], 'api-logs is not supported yet'],
   [['3', '--skip', 'register,nope'], 'unknown rule id nope'],
   [['3', 'no/such/dir'], 'no/such/dir does not exist'],
   [['3', 'README.md'], 'README.md is not a JavaScript, TypeScript or package.json file'],
