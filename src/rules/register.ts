@@ -610,7 +610,7 @@ function run(ctx: FileContext): Edit[] {
         fail(
           call,
           platform,
-          `Every @opentelemetry/ module in this file is loaded with import(), and expanding register() needs ${missing.join(', ')}, which a static import would load up front. Lazy files wait for 0.2. ${BY_HAND}`,
+          `Every @opentelemetry/ module in this file is loaded with import(), and expanding register() needs ${missing.join(', ')}, which a static import would load up front. Expanding lazy register() calls is not supported yet. ${BY_HAND}`,
         )
         continue
       }
