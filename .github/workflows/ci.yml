@@ -47,7 +47,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run build
       - id: sdk-mode
-        run: node --input-type=module -e "import { released } from './dist/data/versions.js'; console.log('mode=' + (released ? '--final' : '--rc'))" >> "$GITHUB_OUTPUT"
+        run: |
+          node --input-type=module -e "import { released } from './dist/data/versions.js'; console.log('mode=' + (released ? '--final' : '--rc'))" >> "$GITHUB_OUTPUT"
       - run: node scripts/typecheck-expected.mjs 2.12
       - run: node scripts/typecheck-expected.mjs 3 ${{ steps.sdk-mode.outputs.mode }}
       - run: node scripts/check-sdk-compatibility.mjs ${{ steps.sdk-mode.outputs.mode }}
