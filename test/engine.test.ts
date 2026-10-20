@@ -664,14 +664,14 @@ test('parse diagnostics keep the whole source line', () => {
 })
 
 
-test('typeof import as a type argument is a grammar limitation, not a missing token check', () => {
+test('typeof import as a type argument is recovered for migration parsing', () => {
   const text = "const value = { ...(await original<typeof import('./source')>()) };"
   const file = ts.createSourceFile('a.ts', text, ts.ScriptTarget.Latest)
   expect((file as unknown as { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics).toEqual([])
   for (const lang of [Lang.TypeScript, Lang.Tsx]) {
     const root = parseAs(lang, text)
-    expect(root.find({ rule: { kind: 'ERROR' } })?.text()).toBe('>()')
-    expect(brokenAt(root)).not.toBeNull()
+    expect(root.find({ rule: { kind: 'ERROR' } })).toBeNull()
+    expect(brokenAt(root)).toBeNull()
     expect(brokenAt(parseAs(lang, text.replace("typeof import('./source')", 'Source')))).toBeNull()
     expect(brokenAt(parseAs(lang, "type Source = typeof import('./source');"))).toBeNull()
   }

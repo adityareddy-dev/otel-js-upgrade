@@ -156,7 +156,7 @@ Coverage is deliberately bounded. Some cases get an explicit `manual-review` fla
 - Reading `node_modules` to find third-party packages that pin SDK 2.x. The tool checks a built-in list instead.
 - `NodeSDK` options written with computed keys, such as `['spanProcessor']: p`; these are left alone.
 
-An exported span processor subclass without a constructor and a re-exported provider class receive a **note**, rather than a todo. The installed parser also cannot read some syntax, including `typeof import()` used as a call type argument; affected files stay unchanged with a parser todo.
+An exported span processor subclass without a constructor and a re-exported provider class receive a **note**, rather than a todo. The parser recovers from its grammar gap for `typeof import()` used as a call type argument, so those files can still be migrated.
 
 ## CLI reference
 
