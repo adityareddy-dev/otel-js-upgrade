@@ -1,6 +1,6 @@
 {
   "name": "otel-js-upgrade",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Upgrades an OpenTelemetry JavaScript setup to SDK 3.0",
   "keywords": [
     "opentelemetry",

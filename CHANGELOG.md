@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0 (2026-10-20)
+
+`3 --write` now works. SDK 3.0.0 is out, so target 3 writes package.json against the final packages: `3.0.0` for the stable ones (including `sdk-logs`), `0.300.0` for the experimental ones, and `1.10.0` for `@opentelemetry/api`. Every one of those versions was checked on npm on the day of the release. The refusal text and the dry-run todo that said 3.0.0 wasn't released are gone from normal runs, and the README no longer calls target 3 a preview.
+
 ## 0.1.3 (2026-10-12)
 
 On target `3`, move named `OTLPExporterNodeConfigBase` imports and re-exports to `@opentelemetry/otlp-exporter-base/node-http`, following upstream #7172. Preserve aliases and root exports such as `CompressionAlgorithm`; target `2.12` stays unchanged. Namespace access and runtime loads of this type require manual review.

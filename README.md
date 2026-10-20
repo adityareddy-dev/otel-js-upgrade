@@ -16,7 +16,7 @@ Preview the code moves, review what needs attention, and apply changes when you'
 
 <p align="center"><em>Illustrated demo with example snippets; this is not a recording of real CLI output.</em></p>
 
-> **Current release:** target `2.12` can apply the supported migration today. Target `3` is a preview: dry runs and `--check` work, but `3 --write` is blocked until a tool release enables writes after SDK 3.0.0 is released.
+> **Current release:** both targets can apply the supported migration. Target `3` writes against the SDK 3.0 packages published on 2026-10-20 (stable packages `3.0.0`, experimental `0.300.0`, `@opentelemetry/api` `1.10.0`); target `2.12` stays available for projects that aren't moving yet.
 
 ## Quick start
 
@@ -69,14 +69,14 @@ npx otel-js-upgrade <target> [paths...] [options]
 | Target | Code changes | package.json and write behavior |
 | --- | --- | --- |
 | `2.12` | Applies the supported moves that already work with SDK 2.12 packages. | Replaces `@opentelemetry/sdk-trace-base`, `sdk-trace-node`, and `sdk-trace-web` with `@opentelemetry/sdk-trace`; raises `core` and `resources` to `2.12.0`. Supports `--write`. |
-| `3` | Previews the SDK 3.0 migration using the same code rules. | Currently leaves package.json alone and reports a todo. `3 --write` stops with exit code `2` and writes nothing. A later tool release will enable it after SDK 3.0.0 is released. |
+| `3` | Applies the SDK 3.0 migration. | Replaces the removed packages with `@opentelemetry/sdk-trace` and writes the final SDK 3.0 versions (`3.0.0` stable, `0.300.0` experimental, `1.10.0` for the api). Supports `--write`. |
 
-`3.0` is also accepted as target `3`. The write block prevents rewritten code from importing `@opentelemetry/sdk-trace` without a matching dependency entry and avoids assigning final SDK 3 package versions before release.
+`3.0` is also accepted as target `3`.
 
 Paths default to `.`. `node_modules`, build output, and anything Git ignores are skipped.
 
 ```sh
-# Preview the future SDK 3 migration
+# Preview the SDK 3 migration
 npx otel-js-upgrade 3
 
 # Scope a dry run to selected directories
@@ -184,7 +184,7 @@ Rule IDs: `span-processor-options`, `nodesdk-plural-options`, `register`, `sdk-t
 | --- | --- |
 | `0` | The run finished, with or without changes and flags. This does not mean every todo is resolved. |
 | `1` | `--check` found at least one pending change. Flags alone do not trigger this code. |
-| `2` | Usage error, parser load failure, `3 --write` while SDK 3 writes are blocked, or `--write` refused a dirty tree. Nothing was written. |
+| `2` | Usage error, parser load failure, or `--write` refused a dirty tree. Nothing was written. |
 | `3` | A rewritten file failed parsing, a rule threw, or a file could not be written. Those files remain unchanged; the rest are processed. package.json is written last, only when every file under it was processed successfully; otherwise it remains unchanged with a todo. |
 
 ## Why this exists

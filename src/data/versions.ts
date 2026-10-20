@@ -1,6 +1,6 @@
-// SDK 3.0.0 isn't released until day 0, npm only has development builds. While false, target 3 leaves every package.json alone.
-export const released = false
-export const releaseDate = '2026-10-15'
+// SDK 3.0.0 was published on 2026-10-20. When false, target 3 leaves every package.json alone and refuses --write.
+export const released = true
+export const releaseDate = '2026-10-20'
 
 const scope = (names: readonly string[]) => names.map((name) => `@opentelemetry/${name}`)
 
@@ -102,8 +102,8 @@ const versions = (stable: string, experimental: string, extra: Record<string, st
     ...extra,
   }) as Readonly<Record<string, string>>
 
-// Inferred from 3.0.0-development.1, 0.300.0-development.1 and 1.10.0-development.1, unverified until day 0.
-// sdk-logs is 3.0.0 on main but its newest canary is still 0.300.0, a day-0 check.
+// The final versions of the 2026-10-20 release (tag v3.0.0): stable packages 3.0.0, experimental 0.300.0, api 1.10.0.
+// sdk-logs is a stable package at 3.0.0 on the tag.
 // api 1.10.0 since 3.0's instrumentation, sdk-node and otlp-transformer read the Logs API from it at runtime (2.6).
 export const target3 = versions('3.0.0', '0.300.0', {
   '@opentelemetry/api': '1.10.0',

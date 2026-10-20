@@ -110,7 +110,7 @@ test('the Node notice goes to stderr only below 22.15.0 and only for target 3', 
 })
 
 test.skipIf(released)('3 --write exits 2 with one line before 3.0.0 is released, --json still prints a document', () => {
-  const line = "otel-js-upgrade: SDK 3.0.0 isn't released yet (due 2026-10-15) and package.json can't get its final version numbers before then, so this version doesn't write target 3. A dry run of 3 shows what will change, and `otel-js-upgrade 2.12 --write` does the moves that work today. The next release lifts this once 3.0.0 is out.\n"
+  const line = "otel-js-upgrade: SDK 3.0.0 isn't released yet (due 2026-10-20) and package.json can't get its final version numbers before then, so this version doesn't write target 3. A dry run of 3 shows what will change, and `otel-js-upgrade 2.12 --write` does the moves that work today. The next release lifts this once 3.0.0 is out.\n"
   const r = cli('3', project, '--write', '--allow-dirty')
   expect(r.status).toBe(2)
   expect(r.stdout).toBe('')

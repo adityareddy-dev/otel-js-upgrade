@@ -35,7 +35,7 @@ test('the name tables', () => {
 })
 
 test('the version lists', () => {
-  expect(released).toBe(false)
+  expect(released).toBe(true)
   const all = [...STABLE, ...EXPERIMENTAL, ...REMOVED, ...UNTOUCHED]
   expect(new Set(all).size).toBe(all.length)
   expect([STABLE.length, EXPERIMENTAL.length, REMOVED.length]).toEqual([10, 25, 8])
