@@ -4,6 +4,8 @@ const JS = /\.(js|jsx|mjs|cjs)$/i
 const TSX = /\.tsx$/i
 const TS = /\.(ts|mts|cts)$/i
 
+const TYPEOF_IMPORT_TYPE_ARGUMENT = /(^|[<,]\s*)(typeof\s+import\s*\(\s*(['"])(?:\\.|(?!\3)[^\\\r\n])*\3\s*\))(?=\s*[>,])/gm
+
 export function langFor(path: string): Lang | null {
   if (TSX.test(path)) return Lang.Tsx
   if (TS.test(path)) return Lang.TypeScript
@@ -33,6 +35,20 @@ export function brokenAt(root: SgNode): SgNode | null {
   return null
 }
 
+function parseRoot(lang: Lang, text: string): SgNode {
+  const root = parse(lang, text).root()
+  if (!brokenAt(root) || (lang !== Lang.TypeScript && lang !== Lang.Tsx)) return root
+
+  const recovered = text.replace(TYPEOF_IMPORT_TYPE_ARGUMENT, (match, prefix: string, query: string) => {
+    const padding = query.slice(7).replace(/[^\r\n]/g, ' ')
+    return `${prefix}unknown${padding}`
+  })
+  if (recovered === text) return root
+
+  const retry = parse(lang, recovered).root()
+  return brokenAt(retry) ? root : retry
+}
+
 export interface Parsed {
   readonly lang: Lang
   readonly root: SgNode
@@ -43,17 +59,17 @@ export interface Parsed {
 export function parseFile(path: string, text: string): Parsed | null {
   const lang = langFor(path)
   if (lang === null) return null
-  const root = parse(lang, text).root()
+  const root = parseRoot(lang, text)
   const broken = brokenAt(root)
   if (broken && lang === Lang.JavaScript) {
-    const retry = parse(Lang.Tsx, text).root()
+    const retry = parseRoot(Lang.Tsx, text)
     if (!brokenAt(retry)) return { lang: Lang.Tsx, root: retry, broken: null }
   }
   return { lang, root, broken }
 }
 
 export function parseAs(lang: Lang, text: string): SgNode {
-  return parse(lang, text).root()
+  return parseRoot(lang, text)
 }
 
 const known = new Map<string, boolean>()
