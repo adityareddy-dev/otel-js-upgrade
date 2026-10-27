@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+The engine now recovers files that use `typeof import('...')` as a type argument instead of skipping them for manual review.
+
 ## 0.2.0 (2026-10-20)
 
 `3 --write` now works. SDK 3.0.0 is out, so target 3 writes package.json against the final packages: `3.0.0` for the stable ones (including `sdk-logs`), `0.300.0` for the experimental ones, and `1.10.0` for `@opentelemetry/api`. Every one of those versions was checked on npm on the day of the release. The refusal text and the dry-run todo that said 3.0.0 wasn't released are gone from normal runs, and the README no longer calls target 3 a preview.
