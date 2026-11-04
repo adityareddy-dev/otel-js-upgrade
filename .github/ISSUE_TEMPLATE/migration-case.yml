@@ -1,0 +1,33 @@
+name: Migration case not covered yet
+description: A change from the SDK 3.0 migration guide, or a code shape, that the tool doesn't rewrite or flag.
+labels: ['enhancement']
+body:
+  - type: textarea
+    id: case
+    attributes:
+      label: The code it should handle
+      description: A short before and after. Before is your code on SDK 2.x, after is what SDK 3.0 needs.
+      render: ts
+    validations:
+      required: true
+  - type: input
+    id: guide
+    attributes:
+      label: Migration guide section or SDK change
+      description: A link to the guide heading, changelog line or pull request that made the change.
+      placeholder: https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md#...
+  - type: dropdown
+    id: what
+    attributes:
+      label: What the tool should do
+      options:
+        - Rewrite it
+        - Flag it with a todo or note
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: How common it is
+      description: Where you hit it, a project or a pattern you've seen, so it can be weighed against the other open cases.

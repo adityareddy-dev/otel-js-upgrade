@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question, or an idea for the tool
+    url: https://github.com/adityareddy-dev/otel-js-upgrade/discussions
+    about: Ask in Discussions. Anything that is not a wrong or missing rewrite belongs there.
+  - name: The SDK 3.0 migration guide
+    url: https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md
+    about: Every todo and note links to its section here.

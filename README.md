@@ -8,7 +8,7 @@ Preview the code moves, review what needs attention, and apply changes when you'
 
 `Dry run by default` · `Explicit --write` · `JavaScript & TypeScript`
 
-[Quick start](#quick-start) · [Targets](#targets) · [Coverage](#what-it-rewrites) · [Limitations](#current-limitations) · [CLI reference](#cli-reference)
+[Quick start](#quick-start) · [Targets](#targets) · [Coverage](#what-it-rewrites) · [Limitations](#current-limitations) · [CLI reference](#cli-reference) · [Contributing](#contributing)
 
 </div>
 
@@ -191,7 +191,11 @@ Rule IDs: `span-processor-options`, `nodesdk-plural-options`, `register`, `sdk-t
 
 A migration guide gives you a checklist. A codemod gives you a diff to review. The supported rewrites were checked against the 2.12.0 source and maintainers' migrations of real code. When the guide and source disagreed, source behavior took precedence.
 
-See the [changelog](CHANGELOG.md) for release details and [open an issue](https://github.com/adityareddy-dev/otel-js-upgrade/issues) for a migration case the tool does not handle.
+See the [changelog](CHANGELOG.md) for release details and [open an issue](https://github.com/adityareddy-dev/otel-js-upgrade/issues/new/choose) for a migration case the tool does not handle.
+
+## Contributing
+
+New rules and fixes are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers running the tests and adding a migration rule, and the [good first issues](https://github.com/adityareddy-dev/otel-js-upgrade/labels/good%20first%20issue) say which files to touch. Questions go in [Discussions](https://github.com/adityareddy-dev/otel-js-upgrade/discussions).
 
 ## License
 
