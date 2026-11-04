@@ -1,0 +1,53 @@
+name: Wrong or missing rewrite
+description: The tool changed code it should have left alone, broke a file, or missed a case it says it handles.
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A case the README lists under [Current limitations](https://github.com/adityareddy-dev/otel-js-upgrade#current-limitations)
+        is known. Use the "Migration case not covered yet" form for those instead.
+
+        The smallest file that shows it is the most useful thing you can paste. Run with `--json` if the text
+        report is long.
+  - type: textarea
+    id: input
+    attributes:
+      label: The code before
+      description: The smallest file that shows it, imports included.
+      render: ts
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: What the tool did
+      description: The diff, todo or error it printed for that file.
+      render: diff
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: The code it should have written, or that it should have left the file alone. A link to the migration guide or SDK source that says so helps.
+    validations:
+      required: true
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target
+      options:
+        - '3'
+        - '2.12'
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: otel-js-upgrade, Node, and the OpenTelemetry packages in your package.json.
+      placeholder: otel-js-upgrade 0.2.0, node 22.15, @opentelemetry/sdk-trace-node 2.0.1
+    validations:
+      required: true
